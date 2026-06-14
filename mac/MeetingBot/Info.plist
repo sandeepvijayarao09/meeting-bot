@@ -26,6 +26,10 @@
     <string>Meeting Bot records your microphone to transcribe your side of the meeting on this device.</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>Meeting Bot records the meeting audio playing on your Mac to transcribe what other participants say.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Meeting Bot reads your current calendar event only to name the meeting note.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Meeting Bot reads your current calendar event only to name the meeting note.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Local-first. Audio never leaves your device.</string>
 </dict>

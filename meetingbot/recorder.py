@@ -113,7 +113,7 @@ def maybe_diarize(session_dir: Path) -> None:
         n = diarize.diarize_session(session_dir)
         if n:
             print(f"  diarized {n} speaker(s)")
-    except Exception as e:  # noqa: BLE001 - diarization is optional, never fatal
+    except Exception as e:
         print(f"  (diarization skipped: {e})")
 
 

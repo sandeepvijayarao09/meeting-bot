@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from meetingbot import ask, config, notes, summarize
+from meetingbot import ask, notes, summarize
 
 
 def _note(title: str, date: str, summary: str, transcript: str) -> None:

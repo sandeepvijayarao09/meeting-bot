@@ -17,6 +17,10 @@ struct MeetingBotApp: App {
       NotesWindow()
     }
     .defaultSize(width: 860, height: 560)
+
+    Settings {
+      SettingsView(controller: controller)
+    }
   }
 }
 
@@ -26,14 +30,20 @@ struct MenuBarLabel: View {
   let isRecording: Bool
   let elapsed: String
   @Environment(\.openWindow) private var openWindow
+  @Environment(\.openSettings) private var openSettings
 
   var body: some View {
     Label("Meeting Bot", systemImage: isRecording ? "record.circle.fill" : "mic")
       .help(isRecording ? "Recording \(elapsed)" : "Meeting Bot")
       .onAppear {
-        if ProcessInfo.processInfo.environment["MBOT_OPEN_NOTES"] == "1" {
+        let env = ProcessInfo.processInfo.environment
+        if env["MBOT_OPEN_NOTES"] == "1" {
           openWindow(id: "notes")
           NSApplication.shared.activate(ignoringOtherApps: true)
+        }
+        if env["MBOT_OPEN_SETTINGS"] == "1" {
+          NSApplication.shared.activate(ignoringOtherApps: true)
+          openSettings()
         }
       }
   }
@@ -66,6 +76,21 @@ struct MenuContent: View {
         }
       }
       .disabled(controller.lastNotePath == nil)
+
+      Divider()
+
+      Picker("Save notes to", selection: $controller.destination) {
+        ForEach(RecordingController.destinations, id: \.id) { dest in
+          Text(dest.label).tag(dest.id)
+        }
+      }
+
+      Toggle("Auto-detect meetings", isOn: $controller.autoDetect)
+
+      SettingsLink {
+        Text("Settings…")
+      }
+      .keyboardShortcut(",")
 
       Divider()
 
