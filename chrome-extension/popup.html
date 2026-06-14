@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font: 13px -apple-system, system-ui, sans-serif;
+        width: 260px;
+        margin: 0;
+        padding: 14px;
+        background: #1c1c1e;
+        color: #eee;
+      }
+      h1 { font-size: 14px; margin: 0 0 10px; }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        margin-bottom: 10px;
+        border-radius: 6px;
+        border: 1px solid #444;
+        background: #2a2a2c;
+        color: #eee;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        border: 0;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #2e7d32;
+        color: white;
+      }
+      button.stop { background: #c62828; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      #status { margin-top: 10px; min-height: 16px; color: #aaa; white-space: pre-wrap; }
+      #mic-link { display: none; margin-top: 8px; font-size: 12px; }
+      #mic-link a { color: #7ab8ff; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>🎙 Meeting Bot</h1>
+    <input id="title" placeholder="Meeting title (optional)" />
+    <button id="toggle">Start recording this tab</button>
+    <div id="status"></div>
+    <div id="mic-link"><a id="mic-enable">Enable microphone…</a></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

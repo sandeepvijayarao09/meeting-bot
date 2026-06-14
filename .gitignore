@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+notes/
+mac/.build/
+chrome-extension/node_modules/
+chrome-extension/package-lock.json
+# Build artifacts (regenerable via scripts/). Source + store assets are tracked.
+dist/
+build/
+*.spec
+.DS_Store
