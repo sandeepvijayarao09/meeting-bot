@@ -102,6 +102,21 @@ def transcript_markdown(session_dir: Path) -> str:
     return transcribe.format_transcript(turns)
 
 
+def maybe_diarize(session_dir: Path) -> None:
+    """Label individual remote speakers if MBOT_DIARIZE is set. Best-effort:
+    a missing model / HF token must never block note creation."""
+    from . import diarize
+
+    if not diarize.enabled():
+        return
+    try:
+        n = diarize.diarize_session(session_dir)
+        if n:
+            print(f"  diarized {n} speaker(s)")
+    except Exception as e:  # noqa: BLE001 - diarization is optional, never fatal
+        print(f"  (diarization skipped: {e})")
+
+
 def _write_and_export(
     session_dir: Path, meta: dict[str, Any], summary_md: str, transcript_md: str
 ) -> Path:
@@ -136,6 +151,7 @@ def build_summary(session_dir: Path, meta: dict[str, Any], transcript_md: str) -
 def summarize_session(session_dir: Path) -> Path:
     """(Re)generate the summary + note for a finished session. Needs the API key."""
     session_dir = Path(session_dir)
+    maybe_diarize(session_dir)
     meta = read_meta(session_dir)
     transcript_md = transcript_markdown(session_dir)
     if not transcript_md:
@@ -190,6 +206,7 @@ def finalize_session(session_dir: Path, want_summary: bool = True) -> tuple[Path
     session_dir = Path(session_dir)
     if want_summary and summarize.have_key():
         return summarize_session(session_dir), True
+    maybe_diarize(session_dir)
     meta = read_meta(session_dir)
     transcript_md = transcript_markdown(session_dir)
     meta["summarized"] = False

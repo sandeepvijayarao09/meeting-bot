@@ -56,6 +56,17 @@ class TestWriteAndSearch:
         notes.write_note(META, "summary", "transcript")
         assert notes.search("zebra") == []
 
+    def test_search_tolerates_punctuation(self, isolated: Path) -> None:
+        # FTS5 treats ? : * etc. as syntax; natural-language queries must not crash.
+        notes.write_note(META, "we approved the migration plan", "t")
+        hits = notes.search("what about the migration?")
+        assert any("Roadmap" in h["title"] for h in hits)
+
+    def test_search_empty_query(self, isolated: Path) -> None:
+        notes.write_note(META, "summary", "transcript")
+        assert notes.search("???") == []
+        assert notes.search("") == []
+
     def test_search_snippet_highlights(self, isolated: Path) -> None:
         notes.write_note(META, "we agreed on the migration plan", "transcript")
         hits = notes.search("migration")

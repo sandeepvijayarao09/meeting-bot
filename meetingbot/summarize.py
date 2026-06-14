@@ -67,20 +67,27 @@ def _log_usage(model: str, usage: Any) -> None:
         pass
 
 
-def _chat(user_content: str, max_tokens: int = 3000) -> str:
+def complete(
+    system_prompt: str, user_prompt: str, max_tokens: int = 3000, temperature: float = 0.2
+) -> str:
+    """One chat completion against NIM. Shared by summary + ask-my-meetings."""
     client = _client()
     resp = client.chat.completions.create(
         model=config.NIM_MODEL,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
         ],
-        temperature=0.2,
+        temperature=temperature,
         max_tokens=max_tokens,
     )
     if resp.usage:
         _log_usage(config.NIM_MODEL, resp.usage)
     return (resp.choices[0].message.content or "").strip()
+
+
+def _chat(user_content: str, max_tokens: int = 3000) -> str:
+    return complete(SYSTEM_PROMPT, user_content, max_tokens=max_tokens)
 
 
 def _split_on_lines(text: str, piece_chars: int) -> list[str]:

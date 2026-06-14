@@ -202,6 +202,29 @@ def transcribe_cmd(
     typer.secho(f"✓ {len(turns)} speaker turns in {path / 'transcript.jsonl'}", fg="green")
 
 
+@app.command()
+def diarize(
+    session: str = typer.Argument(None, help="Session name/path (default: latest)"),
+) -> None:
+    """Label individual remote speakers (Speaker A/B/C) in a session's transcript.
+
+    Requires the diarization extra: `uv sync --extra diarize` and an HF_TOKEN
+    (free, after accepting the pyannote model terms). Re-runs on demand; the
+    pipeline also does this automatically when MBOT_DIARIZE=1.
+    """
+    from . import diarize as diarize_mod
+
+    path = _resolve_session(session)
+    typer.secho(f"diarizing {path.name}…", fg="cyan")
+    try:
+        n = diarize_mod.diarize_session(path)
+    except Exception as e:  # surface missing extra / token plainly
+        typer.secho(f"diarization failed: {e}", fg="red")
+        typer.echo("    install: uv sync --extra diarize   (and set HF_TOKEN)")
+        raise typer.Exit(1) from e
+    typer.secho(f"✓ found {n} speaker(s); transcript updated", fg="green")
+
+
 @app.command(name="list")
 def list_cmd(limit: int = typer.Option(10, "--limit", "-n")) -> None:
     """List recent notes."""
@@ -231,6 +254,23 @@ def sessions() -> None:
             else "recorded"
         )
         typer.echo(f"  {path.name:<40} {state}")
+
+
+@app.command()
+def ask(question: str) -> None:
+    """Ask a question across all your meetings (retrieval + NIM answer)."""
+    from . import ask as ask_mod
+
+    try:
+        result = ask_mod.ask(question)
+    except summarize.MissingAPIKeyError as e:
+        typer.secho(str(e), fg="red")
+        raise typer.Exit(1) from e
+    typer.echo(result.answer)
+    if result.sources:
+        typer.secho("\nSources:", bold=True)
+        for s in result.sources:
+            typer.echo(f"  • {s['title']} ({s['date']})")
 
 
 @app.command()

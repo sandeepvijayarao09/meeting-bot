@@ -74,13 +74,26 @@ def index_note(path: Path, title: str, date: str, summary: str, transcript: str)
         con.close()
 
 
+def _fts_query(query: str) -> str:
+    """Turn free text (incl. natural-language questions) into a safe FTS5 MATCH.
+
+    Each word becomes a quoted literal OR-joined for recall, so punctuation like
+    '?' or ':' can't trip FTS5's query syntax. Returns "" if there are no words.
+    """
+    tokens = re.findall(r"\w+", query)
+    return " OR ".join(f'"{t}"' for t in tokens)
+
+
 def search(query: str, limit: int = 10) -> list[dict[str, str]]:
+    match = _fts_query(query)
+    if not match:
+        return []
     con = _db()
     try:
         rows = con.execute(
             "SELECT title, date, path, snippet(notes, 3, '**', '**', '…', 12) "
             "FROM notes WHERE notes MATCH ? ORDER BY rank LIMIT ?",
-            (query, limit),
+            (match, limit),
         ).fetchall()
     finally:
         con.close()

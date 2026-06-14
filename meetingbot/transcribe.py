@@ -18,6 +18,7 @@ import numpy as np
 
 from . import config
 
+SAMPLE_RATE = 16000  # capture + WAV rate; what Whisper and diarization expect
 SILENCE_RMS = 0.0030  # 16-bit speech is well above this; skips dead air cheaply
 
 
@@ -173,12 +174,19 @@ class LiveTranscriber:
         self._thread.join()
 
 
+def _speaker_label(seg: dict[str, Any]) -> str:
+    """Display label for a segment, including a diarized sub-speaker if present."""
+    base = config.SPEAKER_LABELS.get(seg["speaker"], seg["speaker"])
+    sub = seg.get("sub_speaker")
+    return f"{base} · {sub}" if sub else base
+
+
 def merge_turns(segments: list[dict[str, Any]], max_gap: float = 2.0) -> list[dict[str, Any]]:
     """Sort segments from both streams by time and coalesce into speaker turns."""
     ordered = sorted(segments, key=lambda s: s["start"])
     turns: list[dict[str, Any]] = []
     for seg in ordered:
-        speaker = config.SPEAKER_LABELS.get(seg["speaker"], seg["speaker"])
+        speaker = _speaker_label(seg)
         if turns and turns[-1]["speaker"] == speaker and seg["start"] - turns[-1]["end"] <= max_gap:
             turns[-1]["text"] += " " + seg["text"]
             turns[-1]["end"] = seg["end"]
