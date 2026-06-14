@@ -18,6 +18,19 @@ enum Paths {
 
   static var sessionsDirectory: URL { dataDirectory.appendingPathComponent("sessions") }
 
+  /// Where Markdown notes are written. Mirrors the Python config resolution:
+  /// MBOT_NOTES_DIR, else the dev project's `notes/`, else a data-dir fallback.
+  static var notesDirectory: URL {
+    let override = ProcessInfo.processInfo.environment["MBOT_NOTES_DIR"]
+    if let override, !override.isEmpty {
+      return URL(fileURLWithPath: (override as NSString).expandingTildeInPath)
+    }
+    if let root = projectRoot() {
+      return root.appendingPathComponent("notes")
+    }
+    return dataDirectory.appendingPathComponent("notes")
+  }
+
   /// The `mbot` executable: bundled sidecar first, then env override, then dev venv.
   static func mbotExecutable() -> URL? {
     if let bundled = Bundle.main.url(forResource: "mbot", withExtension: nil),

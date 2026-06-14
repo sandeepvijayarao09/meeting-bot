@@ -9,15 +9,39 @@ struct MeetingBotApp: App {
     MenuBarExtra {
       MenuContent(controller: controller)
     } label: {
-      Label("Meeting Bot", systemImage: controller.isRecording ? "record.circle.fill" : "mic")
-        .help(controller.isRecording ? "Recording \(controller.elapsedString)" : "Meeting Bot")
+      MenuBarLabel(isRecording: controller.isRecording, elapsed: controller.elapsedString)
     }
     .menuBarExtraStyle(.menu)
+
+    Window("Meetings", id: "notes") {
+      NotesWindow()
+    }
+    .defaultSize(width: 860, height: 560)
+  }
+}
+
+/// The always-visible menu bar icon. Also honors MBOT_OPEN_NOTES=1 to open the
+/// Meetings window at launch (used for verification/screenshots).
+struct MenuBarLabel: View {
+  let isRecording: Bool
+  let elapsed: String
+  @Environment(\.openWindow) private var openWindow
+
+  var body: some View {
+    Label("Meeting Bot", systemImage: isRecording ? "record.circle.fill" : "mic")
+      .help(isRecording ? "Recording \(elapsed)" : "Meeting Bot")
+      .onAppear {
+        if ProcessInfo.processInfo.environment["MBOT_OPEN_NOTES"] == "1" {
+          openWindow(id: "notes")
+          NSApplication.shared.activate(ignoringOtherApps: true)
+        }
+      }
   }
 }
 
 struct MenuContent: View {
   @ObservedObject var controller: RecordingController
+  @Environment(\.openWindow) private var openWindow
 
   var body: some View {
     Group {
@@ -30,18 +54,18 @@ struct MenuContent: View {
 
       Divider()
 
+      Button("Meetings…") {
+        openWindow(id: "notes")
+        NSApplication.shared.activate(ignoringOtherApps: true)
+      }
+      .keyboardShortcut("m")
+
       Button("Open Last Note") {
         if let path = controller.lastNotePath {
           NSWorkspace.shared.open(URL(fileURLWithPath: path))
         }
       }
       .disabled(controller.lastNotePath == nil)
-
-      Button("Open Notes Folder") {
-        let notes = FileManager.default.homeDirectoryForCurrentUser
-          .appendingPathComponent(".local/share/meetingbot")
-        NSWorkspace.shared.open(notes)
-      }
 
       Divider()
 
