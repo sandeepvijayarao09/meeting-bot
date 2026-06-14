@@ -1,13 +1,35 @@
 # Meeting Bot
 
-A Granola-style meeting notetaker that runs entirely on your Mac. No bot joins your
-calls — it captures the meeting audio already playing on your laptop (any app: Zoom,
-Meet, Teams, FaceTime…), transcribes it **locally** with Whisper, and uses NVIDIA NIM's
-**free** API for the final summary. Raw audio never leaves your machine.
+**A local-first AI meeting notetaker for macOS.** Like Granola or Otter, but your audio
+never leaves your Mac — it's transcribed on-device with Whisper, and only the finished
+text is (optionally) summarized via a free API.
 
-- **Mic** = you ("Me"), **system audio** = everyone else ("Them") — speaker attribution for free.
-- One Markdown note per meeting: summary, decisions, action items, full transcript.
-- Full-text search across all your meetings.
+[![CI](https://github.com/sandeepvijayarao09/meeting-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/sandeepvijayarao09/meeting-bot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform: macOS](https://img.shields.io/badge/platform-macOS%2014%2B-blue)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+![Swift 5.9](https://img.shields.io/badge/swift-5.9-orange)
+
+No bot joins your calls. It captures the meeting audio already playing on your Mac
+(any app: Zoom, Meet, Teams, FaceTime, or a browser tab), so it works everywhere and
+needs no meeting-platform integration.
+
+- 🔒 **Private by default** — raw audio is transcribed locally and never uploaded.
+- 🗣️ **Speaker attribution** — your mic is "Me", system audio is "Them".
+- 📝 **Structured notes** — summary, decisions, action items, full transcript per meeting.
+- 📤 **Exports** — Markdown, Apple Notes (iCloud or on-device), Google Docs.
+- 🔎 **Search** — full-text across every meeting.
+- 💻 **Two front-ends** — a native SwiftUI menu bar app and a Chrome extension.
+- 💸 **$0** — local Whisper + NVIDIA NIM's free tier (~500 meetings on signup credits).
+
+> **Why local-first?** Cloud notetakers upload your meeting audio to their servers.
+> Meeting Bot keeps the recording and transcript on your machine; the only optional
+> network call sends finished transcript *text* to summarize it — and you can point
+> that at a local model instead.
+
+See [ROADMAP.md](ROADMAP.md) for what's planned (speaker diarization, in-app notes
+browser, calendar integration, ask-your-meetings) and [CONTRIBUTING.md](CONTRIBUTING.md)
+to help.
 
 ## Setup (once)
 

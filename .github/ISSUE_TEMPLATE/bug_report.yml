@@ -1,0 +1,33 @@
+name: Bug report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface?
+      options:
+        - Native app (MeetingBot.app)
+        - Menu bar (Python)
+        - Chrome extension
+        - CLI (mbot)
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `mbot doctor`
+      render: shell
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version & chip (e.g. 14.5, M2)
+    validations:
+      required: true

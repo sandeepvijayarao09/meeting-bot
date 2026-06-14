@@ -1,8 +1,22 @@
 [project]
 name = "meetingbot"
 version = "0.1.0"
-description = "Local Granola-style meeting notetaker: ScreenCaptureKit capture + local Whisper + NVIDIA NIM summaries"
+description = "Local-first AI meeting notetaker for macOS: on-device Whisper transcription, free NVIDIA NIM summaries, exports to Markdown / Apple Notes / Google Docs."
+readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Sandeep Vijayarao", email = "vijayarao.s@northeastern.edu" }]
+keywords = ["meeting", "transcription", "whisper", "notes", "macos", "local-first"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: MacOS X",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Office/Business",
+]
 dependencies = [
     "mlx-whisper>=0.4.1",
     "numpy>=1.26",
@@ -16,6 +30,11 @@ dependencies = [
     "google-auth>=2.54.0",
     "google-auth-oauthlib>=1.4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/sandeepvijayarao09/meeting-bot"
+Repository = "https://github.com/sandeepvijayarao09/meeting-bot"
+Issues = "https://github.com/sandeepvijayarao09/meeting-bot/issues"
 
 [project.scripts]
 mbot = "meetingbot.cli:app"
