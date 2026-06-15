@@ -52,8 +52,9 @@ public final class SessionRecorder {
       try await systemAudio.start()
     } catch {
       throw CaptureError(
-        "system audio capture failed: \(error.localizedDescription) — grant Screen Recording "
-          + "permission in System Settings > Privacy & Security > Screen & System Audio Recording")
+        "Screen Recording permission is needed to capture meeting audio. Grant Meeting Bot in "
+          + "System Settings > Privacy & Security > Screen & System Audio Recording, then QUIT and "
+          + "REOPEN the app (the grant only applies on relaunch).")
     }
     try microphone.start()
     writeSessionInfo()

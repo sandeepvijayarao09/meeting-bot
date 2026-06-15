@@ -1,6 +1,7 @@
 import AppKit
 import CaptureKit
 import Combine
+import CoreGraphics
 import Foundation
 @preconcurrency import UserNotifications
 
@@ -51,6 +52,12 @@ final class RecordingController: ObservableObject {
     }
     // Ask for notification permission once at launch; notify() then just posts.
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    // Register + prompt for Screen Recording up front so it's granted before the
+    // first recording (the grant only takes effect on the next launch, so doing
+    // this at launch avoids a failed first recording mid-meeting).
+    if !CGPreflightScreenCaptureAccess() {
+      DispatchQueue.global(qos: .userInitiated).async { _ = CGRequestScreenCaptureAccess() }
+    }
     refreshDetector()
   }
 
