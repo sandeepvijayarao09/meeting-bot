@@ -5,6 +5,7 @@ Shared by the CLI and the menu bar app.
 
 import contextlib
 import json
+import logging
 import os
 import subprocess
 from collections.abc import Callable
@@ -13,6 +14,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from . import capture, config, exporters, notes, summarize, transcribe
+
+log = logging.getLogger(__name__)
 
 
 def read_meta(session_dir: Path) -> dict[str, Any]:
@@ -112,9 +115,9 @@ def maybe_diarize(session_dir: Path) -> None:
     try:
         n = diarize.diarize_session(session_dir)
         if n:
-            print(f"  diarized {n} speaker(s)")
-    except Exception as e:
-        print(f"  (diarization skipped: {e})")
+            log.info("diarized %d speaker(s)", n)
+    except Exception as e:  # diarization is optional — never block note creation
+        log.warning("diarization skipped: %s", e)
 
 
 def _write_and_export(

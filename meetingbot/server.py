@@ -11,6 +11,7 @@ WAVs + manifest.jsonl), so transcription/summarization/search are shared.
 
 import asyncio
 import json
+import logging
 import os
 import subprocess
 import wave
@@ -20,6 +21,8 @@ from pathlib import Path
 from websockets.asyncio.server import ServerConnection, serve
 
 from . import config, notes, recorder, transcribe
+
+log = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000
 TAG_STREAMS = {0: "mic", 1: "sys"}
@@ -154,12 +157,12 @@ async def _handle(ws: ServerConnection) -> None:
                 except RuntimeError as e:
                     await ws.send(json.dumps({"type": "error", "message": str(e)}))
                     return
-                print(f"● recording {session.session_dir.name}")
+                log.info("recording %s", session.session_dir.name)
                 await ws.send(json.dumps({"type": "started", "session": session.session_dir.name}))
             elif event.get("type") == "stop" and session is not None:
-                print("  stopping — transcribing remaining chunks…")
+                log.info("stopping — transcribing remaining chunks…")
                 note_path, summarized = await session.finish()
-                print(f"✓ note: {note_path}")
+                log.info("note: %s", note_path)
                 await ws.send(
                     json.dumps(
                         {
@@ -175,15 +178,15 @@ async def _handle(ws: ServerConnection) -> None:
     finally:
         if session is not None:
             # browser/extension went away mid-meeting: salvage everything
-            print("  connection lost — finalizing session anyway…")
+            log.info("connection lost — finalizing session anyway…")
             note_path, _ = await session.finish()
-            print(f"✓ note: {note_path}")
+            log.info("note: %s", note_path)
 
 
 async def _serve(host: str, port: int) -> None:
     async with serve(_handle, host, port, max_size=2**22):
-        print(f"mbot serve — listening on ws://{host}:{port}")
-        print("Start/stop recordings from the Chrome extension. Ctrl+C to quit.")
+        log.info("mbot serve — listening on ws://%s:%d", host, port)
+        log.info("Start/stop recordings from the Chrome extension. Ctrl+C to quit.")
         await asyncio.get_running_loop().create_future()
 
 

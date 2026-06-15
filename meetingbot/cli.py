@@ -1,8 +1,10 @@
 """mbot — command-line interface."""
 
+import logging
 import os
 import signal
 import subprocess
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +14,18 @@ import typer
 from . import config, notes, recorder, summarize
 
 app = typer.Typer(help="Local Granola-style meeting notetaker.", no_args_is_help=True)
+
+
+@app.callback()
+def _main(verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose logging")) -> None:
+    """Install a stderr log handler for the meetingbot package (stdout stays clean
+    for machine-readable output like `process --print-note-path`)."""
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    pkg_logger = logging.getLogger("meetingbot")
+    pkg_logger.handlers = [handler]
+    pkg_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    pkg_logger.propagate = False
 
 
 def _resolve_session(name: str | None) -> Path:
