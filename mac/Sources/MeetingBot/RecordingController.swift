@@ -147,9 +147,11 @@ final class RecordingController: ObservableObject {
     if let title, !title.isEmpty { args += ["--title", title] }
     process.arguments = args
     // Save to the chosen destination (Apple Notes / Google Docs); markdown is
-    // always kept too as the local search index.
+    // always kept too as the local search index. Pin the notes dir so the pipeline
+    // writes exactly where the Meetings window reads, wherever the app is installed.
     var env = ProcessInfo.processInfo.environment
     env["MBOT_EXPORTERS"] = destination
+    env["MBOT_NOTES_DIR"] = Paths.notesDirectory.path
     process.environment = env
     let pipe = Pipe()
     process.standardOutput = pipe

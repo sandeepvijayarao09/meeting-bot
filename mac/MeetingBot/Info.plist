@@ -20,8 +20,6 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
-    <key>LSUIElement</key>
-    <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Meeting Bot records your microphone to transcribe your side of the meeting on this device.</string>
     <key>NSAudioCaptureUsageDescription</key>

@@ -38,6 +38,10 @@ fi
 echo "▸ Validating Info.plist…"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
+# Strip any extended attributes (quarantine/provenance) so the freshly built app
+# launches locally without Gatekeeper friction. Sign last so the signature is valid.
+xattr -cr "$APP" 2>/dev/null || true
+
 # Signing: real Developer ID if provided (for distribution), else ad-hoc (local).
 ENTITLEMENTS="$SRC/MeetingBot.entitlements"
 if [ -n "${DEVELOPER_ID:-}" ]; then
@@ -51,4 +55,5 @@ fi
 
 codesign --verify --deep --strict "$APP" && echo "  ✓ signature valid"
 echo "✓ Built $APP"
-echo "  Launch:  open \"$APP\"   (look for the 🎤 in the menu bar)"
+echo "  Launch:  open \"$APP\"   — a Dock icon appears and the Meetings window opens."
+echo "  If Finder says 'unidentified developer': right-click the app → Open → Open (once)."

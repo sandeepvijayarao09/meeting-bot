@@ -36,13 +36,11 @@ struct MenuBarLabel: View {
     Label("Meeting Bot", systemImage: isRecording ? "record.circle.fill" : "mic")
       .help(isRecording ? "Recording \(elapsed)" : "Meeting Bot")
       .onAppear {
-        let env = ProcessInfo.processInfo.environment
-        if env["MBOT_OPEN_NOTES"] == "1" {
-          openWindow(id: "notes")
-          NSApplication.shared.activate(ignoringOtherApps: true)
-        }
-        if env["MBOT_OPEN_SETTINGS"] == "1" {
-          NSApplication.shared.activate(ignoringOtherApps: true)
+        // Open the main window on launch so the app is visible and usable
+        // (it also has a Dock icon now). The menu bar item remains for quick control.
+        openWindow(id: "notes")
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        if ProcessInfo.processInfo.environment["MBOT_OPEN_SETTINGS"] == "1" {
           openSettings()
         }
       }
