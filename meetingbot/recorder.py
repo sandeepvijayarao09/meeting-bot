@@ -82,7 +82,9 @@ def ensure_meta(session_dir: Path, title: str | None = None) -> dict[str, Any]:
     started = datetime.now()
     session_json = session_dir / "session.json"
     if session_json.exists():
-        with contextlib.suppress(ValueError, KeyError, json.JSONDecodeError):
+        # session.json is written by the native capture helper; tolerate it being
+        # missing, malformed, or not even a JSON object without crashing.
+        with contextlib.suppress(ValueError, KeyError, TypeError, json.JSONDecodeError):
             raw = json.loads(session_json.read_text())
             started = datetime.fromisoformat(raw["started_at"].replace("Z", "+00:00"))
             started = started.astimezone().replace(tzinfo=None)

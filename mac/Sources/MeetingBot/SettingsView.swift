@@ -115,7 +115,6 @@ struct SettingsView: View {
         }
         Text("A Markdown copy is always kept locally so search and the Meetings window work.")
           .font(.caption).foregroundStyle(.secondary)
-        Toggle("Auto-detect meetings and offer to record", isOn: $controller.autoDetect)
       }
 
       Section("Summaries & Ask (NVIDIA NIM)") {

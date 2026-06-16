@@ -83,8 +83,6 @@ struct MenuContent: View {
         }
       }
 
-      Toggle("Auto-detect meetings", isOn: $controller.autoDetect)
-
       SettingsLink {
         Text("Settings…")
       }

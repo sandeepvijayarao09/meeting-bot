@@ -1,28 +1,33 @@
 #!/usr/bin/env bash
-# Install Meeting Bot on macOS: build, deps, `mbot` on PATH, and LaunchAgents
-# that auto-start the capture server + menu bar app at login.
+# Install Meeting Bot on macOS: build the app + capture helper, sync the Python
+# pipeline, and put the `mbot` CLI on PATH. Nothing auto-starts or runs in the
+# background — you open MeetingBot.app and it only records when you click Start.
 #
 # Idempotent — safe to re-run after pulling changes. Uninstall: scripts/uninstall-macos.sh
 set -euo pipefail
 
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UID_NUM="$(id -u)"
-AGENTS="$HOME/Library/LaunchAgents"
-LOGS="$HOME/Library/Logs/meetingbot"
 BIN="$HOME/.local/bin"
 UV="$(command -v uv || echo /opt/homebrew/bin/uv)"
 
 echo "▸ Meeting Bot install — project: $PROJECT"
 [ -x "$UV" ] || { echo "✗ uv not found. Install: brew install uv"; exit 1; }
 
-echo "▸ Building native capture + app (Swift)…"
+echo "▸ Building the app + capture helper (Swift)…"
 ( cd "$PROJECT/mac" && swift build -c release >/dev/null )
 
 echo "▸ Syncing Python environment…"
 ( cd "$PROJECT" && "$UV" sync >/dev/null )
 
-mkdir -p "$BIN" "$LOGS" "$AGENTS"
+echo "▸ Building MeetingBot.app…"
+bash "$PROJECT/scripts/build-app.sh" >/dev/null
 
+echo "▸ Installing MeetingBot.app to /Applications…"
+rm -rf "/Applications/MeetingBot.app"
+cp -R "$PROJECT/dist/MeetingBot.app" "/Applications/"
+xattr -cr "/Applications/MeetingBot.app" 2>/dev/null || true
+
+mkdir -p "$BIN"
 echo "▸ Installing mbot CLI to $BIN/mbot"
 cat > "$BIN/mbot" <<EOF
 #!/bin/sh
@@ -31,58 +36,17 @@ EOF
 chmod +x "$BIN/mbot"
 
 # Ensure ~/.local/bin is on PATH for interactive zsh shells.
-if ! grep -q 'meetingbot CLI' "$HOME/.zshrc" 2>/dev/null; then
+if ! grep -q 'Meeting Bot CLI' "$HOME/.zshrc" 2>/dev/null; then
   printf '\n# Meeting Bot CLI\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.zshrc"
   echo "  added ~/.local/bin to PATH in ~/.zshrc (open a new terminal to pick it up)"
 fi
 
-write_agent() {
-  local label="$1"; shift
-  local plist="$AGENTS/$label.plist"
-  local keepalive="$1"; shift
-  local args_xml=""
-  for a in "$@"; do args_xml="$args_xml        <string>$a</string>\n"; done
-  printf '%b' "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-<plist version=\"1.0\">
-<dict>
-    <key>Label</key>
-    <string>$label</string>
-    <key>ProgramArguments</key>
-    <array>
-$args_xml    </array>
-    <key>WorkingDirectory</key>
-    <string>$PROJECT</string>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <$keepalive/>
-    <key>StandardOutPath</key>
-    <string>$LOGS/${label##*.}.log</string>
-    <key>StandardErrorPath</key>
-    <string>$LOGS/${label##*.}.log</string>
-</dict>
-</plist>
-" > "$plist"
-  launchctl bootout "gui/$UID_NUM/$label" 2>/dev/null || true
-  launchctl bootstrap "gui/$UID_NUM" "$plist"
-  echo "  loaded $label"
-}
-
-echo "▸ Installing LaunchAgents…"
-write_agent com.meetingbot.serve   true  "$PROJECT/.venv/bin/mbot" serve
-write_agent com.meetingbot.menubar false "$PROJECT/.venv/bin/mbot-menubar"
-
-sleep 3
-echo "▸ Verifying…"
-if lsof -nP -iTCP:8765 -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "  ✓ capture server listening on 127.0.0.1:8765"
-else
-  echo "  ⚠ server not yet listening — check $LOGS/serve.log"
-fi
 echo
-echo "✓ Installed. Next:"
-echo "  1. Add your free NVIDIA key:  mkdir -p ~/.config/meetingbot && echo 'NVIDIA_API_KEY=nvapi-...' > ~/.config/meetingbot/.env"
-echo "  2. Load the Chrome extension (chrome://extensions → Load unpacked → chrome-extension/)"
-echo "  3. First recording will prompt for Microphone + Screen Recording permission."
-echo "  Run 'mbot doctor' (in a new terminal) to check everything."
+echo "✓ Installed — nothing runs in the background. Next:"
+echo "  1. Open MeetingBot.app (Spotlight → 'Meeting Bot'). Click Start to record; Stop to make a note."
+echo "  2. Optional summaries: add a free NVIDIA key in Settings (or"
+echo "     echo 'NVIDIA_API_KEY=nvapi-...' > ~/.config/meetingbot/.env)."
+echo "  3. First Start prompts for Microphone + Screen Recording — grant, then reopen the app."
+echo
+echo "  The Chrome extension is optional and NOT always-on: start its local server"
+echo "  only when you want it, with 'mbot serve', then record from the extension."

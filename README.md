@@ -79,14 +79,20 @@ uv run mbot-menubar    # 🎙 quick Python menu bar (dev): Start/Stop, open note
 
 ### Native macOS app (recommended)
 
-There's also a real native **SwiftUI** menu bar app in `mac/` — this is the
-shippable product (one `.app`, no terminal). It captures audio in-process and hands
-each meeting to the local pipeline.
+The native **SwiftUI** app in `mac/` is the real product (one `.app`, no terminal):
+a Dock app with a Meetings window and a menu-bar 🎤. It captures audio in-process and
+hands each meeting to the local pipeline.
 
 ```bash
 make app                  # build dist/MeetingBot.app
-open dist/MeetingBot.app   # 🎤 appears in the menu bar
+open dist/MeetingBot.app   # opens the Meetings window; 🎤 in the menu bar
 ```
+
+**Click-to-record only.** The app does nothing until you click **Start Recording** —
+there's no meeting auto-detection, no background mic watching, and nothing auto-starts
+at login or runs as a daemon. Open it when you want it; quit it when you don't. Click
+Stop to make the note. (It reads your calendar *only when you click Start*, to title
+the note — like Granola.)
 
 Packaging it into a signed, notarized DMG for other Macs is documented in
 [DISTRIBUTION.md](DISTRIBUTION.md).

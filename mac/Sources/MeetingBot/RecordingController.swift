@@ -17,12 +17,6 @@ final class RecordingController: ObservableObject {
   @Published private(set) var state: State = .idle
   @Published private(set) var elapsed: TimeInterval = 0
   @Published private(set) var lastNotePath: String?
-  @Published var autoDetect: Bool {
-    didSet {
-      UserDefaults.standard.set(autoDetect, forKey: "autoDetect")
-      refreshDetector()
-    }
-  }
 
   /// Where finished notes are saved. "apple_notes" | "google_docs" | "markdown".
   /// (A local Markdown copy is always kept too — it backs search and the Meetings
@@ -42,23 +36,18 @@ final class RecordingController: ObservableObject {
   private var startedAt: Date?
   private var pendingTitle: String?
   private var timer: Timer?
-  private let detector = MeetingDetector()
 
   init() {
-    autoDetect = UserDefaults.standard.bool(forKey: "autoDetect")
     destination = UserDefaults.standard.string(forKey: "destination") ?? "apple_notes"
-    detector.onMeetingLikelyStarted = { [weak self] reason in
-      self?.suggestRecording(reason)
-    }
     // Ask for notification permission once at launch; notify() then just posts.
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     // Register + prompt for Screen Recording up front so it's granted before the
     // first recording (the grant only takes effect on the next launch, so doing
-    // this at launch avoids a failed first recording mid-meeting).
+    // this at launch avoids a failed first recording mid-meeting). This only
+    // requests permission — it never records; recording happens solely on Start.
     if !CGPreflightScreenCaptureAccess() {
       DispatchQueue.global(qos: .userInitiated).async { _ = CGRequestScreenCaptureAccess() }
     }
-    refreshDetector()
   }
 
   var isRecording: Bool { state == .recording }
@@ -66,20 +55,6 @@ final class RecordingController: ObservableObject {
   var elapsedString: String {
     let total = Int(elapsed)
     return String(format: "%02d:%02d", total / 60, total % 60)
-  }
-
-  /// Run the detector only while idle and only if the user enabled auto-detect.
-  private func refreshDetector() {
-    if autoDetect, state == .idle {
-      detector.start()
-    } else {
-      detector.stop()
-    }
-  }
-
-  private func suggestRecording(_ reason: String) {
-    guard state == .idle, autoDetect else { return }
-    notify("Meeting detected", "\(reason). Click the menu bar \u{1F3A4} to record.")
   }
 
   func toggle() {
@@ -93,7 +68,6 @@ final class RecordingController: ObservableObject {
   // MARK: - Recording
 
   private func start() {
-    detector.stop()  // we're about to use the mic ourselves
     let stamp = Self.timestampFormatter.string(from: Date())
     let url = Paths.sessionsDirectory.appendingPathComponent("\(stamp)-meeting")
     Task {
@@ -139,7 +113,6 @@ final class RecordingController: ObservableObject {
       let notePath = try await runPipeline(mbot: mbot, sessionURL: sessionURL, title: pendingTitle)
       lastNotePath = notePath
       state = .idle
-      refreshDetector()  // resume watching for the next meeting
       if let notePath { NSWorkspace.shared.open(URL(fileURLWithPath: notePath)) }
       notify("Note ready", notePath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "")
     } catch {
@@ -180,7 +153,6 @@ final class RecordingController: ObservableObject {
     stopTimer()
     recorder = nil
     state = .error(message)
-    refreshDetector()
     notify("Meeting Bot error", message)
   }
 
