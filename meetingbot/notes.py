@@ -15,8 +15,10 @@ PLACEHOLDER_SUMMARY = (
 
 
 def slugify(text: str, max_len: int = 40) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-    return slug[:max_len].rstrip("-") or "meeting"
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:max_len].rstrip("-")
+    # Fall back to a placeholder, also bounded by max_len so the result never
+    # exceeds the requested length.
+    return slug or "meeting"[:max_len]
 
 
 def format_duration(seconds: float | None) -> str:
