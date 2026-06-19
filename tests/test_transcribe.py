@@ -77,6 +77,53 @@ class TestMergeTurns:
         assert transcribe.merge_turns([]) == []
 
 
+class TestCleanSegments:
+    def test_keeps_confident_speech(self) -> None:
+        raw = [
+            {
+                "start": 0.0,
+                "end": 1.0,
+                "text": "hello team",
+                "avg_logprob": -0.2,
+                "compression_ratio": 1.5,
+                "no_speech_prob": 0.01,
+            }
+        ]
+        assert transcribe._clean_segments(raw) == [{"start": 0.0, "end": 1.0, "text": "hello team"}]
+
+    def test_drops_empty_and_low_confidence(self) -> None:
+        raw = [
+            {"start": 0, "end": 1, "text": "   ", "avg_logprob": -0.1},
+            {"start": 1, "end": 2, "text": "garbled", "avg_logprob": -3.0},  # too low
+            {"start": 2, "end": 3, "text": "loop", "compression_ratio": 5.0},  # repetitive
+            {"start": 3, "end": 4, "text": "noise", "no_speech_prob": 0.9},  # not speech
+        ]
+        assert transcribe._clean_segments(raw) == []
+
+    def test_drops_hallucinated_filler_on_silence(self) -> None:
+        raw = [{"start": 0, "end": 1, "text": "Thanks for watching!", "no_speech_prob": 0.5}]
+        assert transcribe._clean_segments(raw) == []
+
+    def test_keeps_genuine_thank_you_when_confident(self) -> None:
+        raw = [
+            {"start": 0, "end": 1, "text": "Thank you", "no_speech_prob": 0.01, "avg_logprob": -0.1}
+        ]
+        assert len(transcribe._clean_segments(raw)) == 1
+
+
+class TestSeedContext:
+    def test_per_speaker_tails_bounded(self, tmp_path: Path) -> None:
+        segs = [
+            {"start": 0, "end": 1, "speaker": "mic", "text": "alpha " * 80},
+            {"start": 1, "end": 2, "speaker": "sys", "text": "beta"},
+        ]
+        (tmp_path / "transcript.jsonl").write_text("".join(json.dumps(s) + "\n" for s in segs))
+        ctx = transcribe._seed_context(tmp_path)
+        assert set(ctx) == {"mic", "sys"}
+        assert len(ctx["mic"]) <= transcribe.CONTEXT_CHARS
+        assert ctx["sys"] == "beta"
+
+
 class TestFormatting:
     def test_format_transcript(self) -> None:
         turns = [{"speaker": "Me", "start": 65.0, "end": 67.0, "text": "hi"}]
