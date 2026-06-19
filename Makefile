@@ -1,8 +1,8 @@
 # Meeting Bot — development tasks. `make check` runs everything CI would.
 
-.PHONY: check lint type test swift-build swift-lint ext-check app models clean
+.PHONY: check lint type test swift-build swift-lint ext-check ext-test app models clean
 
-check: lint type test swift-build swift-lint ext-check
+check: lint type test swift-build swift-lint ext-check ext-test
 	@echo "\n✓ all checks passed"
 
 lint:
@@ -23,6 +23,10 @@ swift-lint:
 
 ext-check:
 	cd chrome-extension && npm install --no-fund --no-audit --silent && npx tsc --noEmit
+
+# Unit-test the extension's JS (audio encoder) with Node's built-in test runner.
+ext-test:
+	cd chrome-extension && node --test test/*.test.mjs
 
 # Build the distributable MeetingBot.app bundle.
 app:

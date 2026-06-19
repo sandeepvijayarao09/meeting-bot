@@ -4,7 +4,8 @@
   "private": true,
   "description": "Type-checking setup for the Meeting Bot Chrome extension (no build step; the JS files load unpacked as-is).",
   "scripts": {
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
     "chrome-types": "^0.1.300",
