@@ -62,9 +62,42 @@ final class RecordingController: ObservableObject {
     if !CGPreflightScreenCaptureAccess() {
       DispatchQueue.global(qos: .userInitiated).async { _ = CGRequestScreenCaptureAccess() }
     }
+    // Never lose a recording: finish any session interrupted by a crash/force-quit.
+    recoverInterrupted()
   }
 
   var isRecording: Bool { state == .recording }
+
+  /// On launch, hand any interrupted recordings to the pipeline to finish.
+  private func recoverInterrupted() {
+    guard let mbot = Paths.mbotExecutable() else { return }
+    let dest = destination
+    let tmpl = template
+    Task.detached {
+      let process = Process()
+      process.executableURL = mbot
+      process.arguments = ["recover", "--print-note-paths"]
+      var env = ProcessInfo.processInfo.environment
+      env["MBOT_EXPORTERS"] = dest
+      env["MBOT_TEMPLATE"] = tmpl
+      env["MBOT_NOTES_DIR"] = Paths.notesDirectory.path
+      process.environment = env
+      let pipe = Pipe()
+      process.standardOutput = pipe
+      process.standardError = Pipe()
+      guard (try? process.run()) != nil else { return }
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      process.waitUntilExit()
+      let paths =
+        (String(data: data, encoding: .utf8) ?? "")
+        .split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+      guard !paths.isEmpty else { return }
+      await MainActor.run {
+        self.lastNotePath = paths.last
+        self.notify("Recovered meeting", "Finished \(paths.count) interrupted recording(s).")
+      }
+    }
+  }
 
   var elapsedString: String {
     let total = Int(elapsed)

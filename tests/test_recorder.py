@@ -112,6 +112,50 @@ class TestExportSession:
         assert meta["exports"][0]["target"] == "markdown"
 
 
+class TestRecovery:
+    def test_finds_and_finishes_interrupted_session(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A native-app crash leaves session.json + manifest + transcript but no note.
+        session = config.SESSIONS_DIR / "20260614-090000-meeting"
+        session.mkdir(parents=True)
+        (session / "session.json").write_text(json.dumps({"started_at": "2026-06-14T09:00:00"}))
+        (session / "manifest.jsonl").write_text(
+            json.dumps({"stream": "mic", "file": "mic-0001.wav", "start": 0.0, "end": 5.0}) + "\n"
+        )
+        (session / "transcript.jsonl").write_text(
+            json.dumps(
+                {
+                    "start": 0.0,
+                    "end": 2.0,
+                    "speaker": "mic",
+                    "text": "hello",
+                    "chunk": "mic-0001.wav",
+                }
+            )
+            + "\n"
+        )
+        # Don't run real Whisper during recovery.
+        monkeypatch.setattr(recorder.transcribe, "transcribe_session", lambda *a, **k: None)
+
+        assert recorder.unfinished_sessions() == [session]
+        made = recorder.recover()
+        assert len(made) == 1 and made[0].exists()
+        # Once finalized it's no longer "unfinished".
+        assert recorder.unfinished_sessions() == []
+
+    def test_finalized_and_empty_sessions_are_not_recovered(self, isolated: Path) -> None:
+        # Finalized session (has note_path) — skip.
+        done = config.SESSIONS_DIR / "done"
+        done.mkdir(parents=True)
+        (done / "manifest.jsonl").write_text("")
+        recorder.write_meta(done, {"started_at": "2026-06-14T09:00:00", "note_path": "/x.md"})
+        # Session with no manifest (never captured) — skip.
+        empty = config.SESSIONS_DIR / "empty"
+        empty.mkdir(parents=True)
+        assert recorder.unfinished_sessions() == []
+
+
 class TestSessionListing:
     def test_lists_only_real_sessions_newest_first(self, isolated: Path) -> None:
         fake_session(isolated, "20260610-090000-old")

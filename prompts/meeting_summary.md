@@ -32,8 +32,15 @@ If there are none, write "None."
 Unresolved issues or things deferred to a later conversation. If none, write "None."
 
 Rules:
-- Use only facts from the transcript and rough notes; never invent details.
+- Use ONLY facts from the transcript and rough notes; never invent details, names,
+  numbers, owners, or dates. It is better to omit than to guess.
+- Be specific and concise — prefer concrete facts (figures, names, dates) over vague
+  paraphrase, and don't pad. Every bullet should carry information.
+- Capture EVERY decision and EVERY action item — these are the most important output.
+  Attribute each action item to an owner only if one was actually named.
 - If the rough notes exist, treat them as what the attendee cared about: expand and
   correct them against the transcript and keep their emphasis.
 - Transcription may contain errors; silently fix obvious mis-transcriptions using context.
+- If the transcript is too short or empty to support a section, write "None." for that
+  section rather than inventing content.
 - Output only the Markdown note. No preamble, no top-level title heading.

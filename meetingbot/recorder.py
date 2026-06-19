@@ -242,6 +242,41 @@ def latest_session() -> Path | None:
     return sessions[0] if sessions else None
 
 
+def unfinished_sessions() -> list[Path]:
+    """Sessions with captured audio (a manifest) that never produced a note —
+    e.g. the app was force-quit or crashed mid-meeting. Excludes the session
+    currently recording and any already finalized."""
+    if not config.SESSIONS_DIR.exists():
+        return []
+    current = current_recording()
+    current_dir = Path(current["session_dir"]).resolve() if current else None
+    result: list[Path] = []
+    for s in sorted(config.SESSIONS_DIR.iterdir()):
+        if not s.is_dir() or not (s / "manifest.jsonl").exists():
+            continue
+        if current_dir is not None and s.resolve() == current_dir:
+            continue
+        meta_path = s / "meta.json"
+        if meta_path.exists() and read_meta(s).get("note_path"):
+            continue  # already finalized
+        result.append(s)
+    return result
+
+
+def recover(template: str | None = None) -> list[Path]:
+    """Finish every interrupted recording: transcribe + write its note. Returns
+    the note paths produced. Safe to call on launch; a no-op when nothing pending."""
+    notes_made: list[Path] = []
+    for session in unfinished_sessions():
+        ensure_meta(session)
+        transcribe.transcribe_session(session)
+        if not transcript_markdown(session):
+            continue  # nothing was actually said; skip empty captures
+        note_path, _ = finalize_session(session, want_summary=True, template=template)
+        notes_made.append(note_path)
+    return notes_made
+
+
 class Recorder:
     def __init__(
         self,

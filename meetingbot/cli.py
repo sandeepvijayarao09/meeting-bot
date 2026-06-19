@@ -158,6 +158,24 @@ def export(
             typer.secho(f"✗ {r.target}: {r.detail}", fg="yellow")
 
 
+@app.command()
+def recover(
+    print_note_paths: bool = typer.Option(
+        False, "--print-note-paths", help="Print only the recovered note paths (one per line)"
+    ),
+) -> None:
+    """Finish any interrupted recordings (after a crash or force-quit)."""
+    pending = recorder.unfinished_sessions()
+    if not pending:
+        if not print_note_paths:
+            typer.secho("no interrupted recordings to recover", fg="green")
+        return
+    if not print_note_paths:
+        typer.secho(f"recovering {len(pending)} interrupted recording(s)…", fg="cyan")
+    for note_path in recorder.recover():
+        typer.echo(str(note_path) if print_note_paths else f"✓ {note_path}")
+
+
 @app.command(name="auth-google")
 def auth_google() -> None:
     """Authorize Google Docs export (opens a browser once)."""

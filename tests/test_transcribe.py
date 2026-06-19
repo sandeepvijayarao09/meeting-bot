@@ -76,6 +76,16 @@ class TestMergeTurns:
     def test_empty(self) -> None:
         assert transcribe.merge_turns([]) == []
 
+    def test_dedupes_boundary_echo(self) -> None:
+        # initial_prompt can make Whisper echo the prior line at a chunk start.
+        segments = [
+            {"start": 0.0, "end": 2.0, "speaker": "sys", "text": "ship the beta"},
+            {"start": 30.0, "end": 32.0, "speaker": "sys", "text": "Ship the beta"},  # echo
+            {"start": 33.0, "end": 35.0, "speaker": "sys", "text": "next item"},
+        ]
+        turns = transcribe.merge_turns(segments)
+        assert " ".join(t["text"] for t in turns).lower().count("ship the beta") == 1
+
 
 class TestCleanSegments:
     def test_keeps_confident_speech(self) -> None:

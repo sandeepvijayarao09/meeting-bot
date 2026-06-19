@@ -244,9 +244,23 @@ def _speaker_label(seg: dict[str, Any]) -> str:
     return f"{base} · {sub}" if sub else base
 
 
+def _dedupe(ordered: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop consecutive same-speaker segments with identical text — these are
+    chunk-boundary echoes caused by feeding prior text as Whisper's context."""
+    out: list[dict[str, Any]] = []
+    last: dict[str, str] = {}
+    for seg in ordered:
+        norm = " ".join(seg.get("text", "").lower().split())
+        if norm and last.get(seg.get("speaker", "")) == norm:
+            continue
+        last[seg.get("speaker", "")] = norm
+        out.append(seg)
+    return out
+
+
 def merge_turns(segments: list[dict[str, Any]], max_gap: float = 2.0) -> list[dict[str, Any]]:
     """Sort segments from both streams by time and coalesce into speaker turns."""
-    ordered = sorted(segments, key=lambda s: s["start"])
+    ordered = _dedupe(sorted(segments, key=lambda s: s["start"]))
     turns: list[dict[str, Any]] = []
     for seg in ordered:
         speaker = _speaker_label(seg)

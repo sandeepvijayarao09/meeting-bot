@@ -38,16 +38,18 @@ def _segment() -> st.SearchStrategy[dict]:
 class TestMergeTurnsProperties:
     @settings(max_examples=150)
     @given(st.lists(_segment(), max_size=40))
-    def test_sorted_and_words_preserved(self, segments: list[dict]) -> None:
+    def test_sorted_and_words_subsequence(self, segments: list[dict]) -> None:
         turns = transcribe.merge_turns(segments)
         # Output is time-ordered.
         starts = [t["start"] for t in turns]
         assert starts == sorted(starts)
-        # No transcript text is lost or reordered (coalescing only inserts spaces).
+        # Boundary-echo de-duplication may drop repeated segments, but words are
+        # never invented or reordered: output is a subsequence of the input words.
         ordered = sorted(segments, key=lambda s: s["start"])
         expected = " ".join(s["text"] for s in ordered).split()
         got = " ".join(t["text"] for t in turns).split()
-        assert got == expected
+        it = iter(expected)
+        assert all(word in it for word in got)
         # Turns never exceed segments; each turn is well-formed.
         assert len(turns) <= len(segments)
         for t in turns:
