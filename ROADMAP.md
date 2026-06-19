@@ -1,34 +1,40 @@
 # Roadmap
 
-Where Meeting Bot is, and what would bring it to parity with commercial AI notetakers
-(Granola, Otter, Fathom, Fireflies, tl;dv). Everything stays local-first.
+Where Meeting Bot stands vs. commercial AI notetakers (Granola, Otter, Fathom,
+Fireflies, tl;dv) and what's next. Everything stays local-first.
 
-## Shipped (v0.1)
+## Shipped
 
 - ✅ Any-app capture (mic + system audio), no bot joins the call
 - ✅ Local Whisper transcription with Me/Them attribution
+- ✅ Speaker diarization (Speaker A/B/C among "Them"), opt-in `MBOT_DIARIZE`
 - ✅ AI summaries (decisions, action items) via free NVIDIA NIM
+- ✅ **Meeting templates / "Recipes"** — general, standup, 1:1, interview, sales call
+- ✅ **Talk-time analytics** — Me/Them ratio, words, turns, longest monologue
+- ✅ Ask-my-meetings (retrieval + AI answer with sources)
 - ✅ Exports: Markdown, Apple Notes (iCloud/device), Google Docs (cloud)
 - ✅ Full-text search across meetings
-- ✅ Native macOS menu bar app + Chrome extension
+- ✅ Calendar titles (read only on Start)
+- ✅ Native macOS app (Meetings window + Settings/Access) + Chrome extension
 - ✅ Packaging: `.app`, DMG, sign/notarize scripts
+- ✅ Click-to-record only — no auto-detect, no background daemons
 
-## Gap to commercial notetakers (planned)
+## Next (to match / beat the field)
 
-| Feature | Status | Notes |
+| Feature | Who has it | Notes |
 |---|---|---|
-| **Speaker diarization** (Speaker A/B/C among "Them") | planned | `pyannote.audio`, local, opt-in (`MBOT_DIARIZE`). Adds per-speaker labels the single stream can't give today. |
-| **In-app notes browser** (list, read, search, edit in the app) | planned | SwiftUI window so it feels like a product, not "opens a .md file". |
-| **Live transcript view** during the meeting | planned | Stream segments into the app/extension UI in real time. |
-| **Calendar titles** | ✅ shipped | EventKit names each note from the current event — read only when you click Start. |
-| **Ask my meetings** (chat over transcripts) | planned | FTS retrieval + NIM answer: "what did we decide about pricing?" |
-| **Meeting templates** | planned | Different summary prompts for standups, 1:1s, interviews. |
-| **Editable / shareable notes** | planned | Edit summaries; share links. |
+| **MCP server** (feed meetings to Claude/ChatGPT) | Granola (2026) | Expose search/ask/get-note as MCP tools — on-brand and unique among local tools. |
+| **Live transcript view** during the call | Otter, Granola | Stream segments into the app UI in real time (already transcribed live; needs the view). |
+| **In-meeting notepad** (type sparse notes → AI expands) | Granola (signature) | UI for the existing `notes.txt` merge. |
+| **In-app chat panel** over a meeting / all meetings | Fireflies AskFred | `mbot ask` exists as CLI; add a chat UI. |
+| **Semantic search** (embeddings) | most | Beat keyword FTS with a local embedding model. |
+| **Editable / shareable notes** | most | Edit summaries in the app; share links. |
+| **Integrations** (Slack / Notion / CRM) | Fireflies (widest) | Outbound webhooks; opt-in, keeps audio local. |
+| **Notarized distribution + auto-update** | all | Developer-ID notarize (scripts ready) + Sparkle. |
 
-## Good first issues
+## Where we already win
 
-- Add a meeting-type template selector to the summary prompt.
-- Add `mbot export --to clipboard`.
-- Surface NIM credit usage in `mbot doctor`.
+Privacy (audio never leaves the device — none of the others), $0 cost, MIT-open,
+and any-app capture with no bot joining the call.
 
 Have a request? Open an issue.

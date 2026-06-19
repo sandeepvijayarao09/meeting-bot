@@ -117,8 +117,13 @@ def summarize_meeting(
     title: str = "",
     date: str = "",
     duration: str = "",
+    template: str | None = None,
 ) -> str:
-    """One NIM round trip for normal meetings; map-reduce for marathon ones."""
+    """One NIM round trip for normal meetings; map-reduce for marathon ones.
+
+    `template` selects a meeting-type prompt ("standup", "one_on_one", …); None
+    uses the default/general template.
+    """
     if len(transcript) > MAX_DIRECT_CHARS:
         condensed = [
             _chat(CONDENSE_PROMPT + piece, max_tokens=2000)
@@ -126,9 +131,9 @@ def summarize_meeting(
         ]
         transcript = "\n\n".join(condensed)
 
-    template = config.PROMPT_TEMPLATE.read_text()
+    template_text = config.resolve_template(template or config.TEMPLATE).read_text()
     prompt = _fill(
-        template,
+        template_text,
         TITLE=title or "(untitled)",
         DATE=date or "(unknown)",
         DURATION=duration or "(unknown)",

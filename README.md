@@ -15,11 +15,13 @@ No bot joins your calls. It captures the meeting audio already playing on your M
 needs no meeting-platform integration.
 
 - 🔒 **Private by default** — raw audio is transcribed locally and never uploaded.
-- 🗣️ **Speaker attribution** — your mic is "Me", system audio is "Them".
+- 🗣️ **Speaker attribution** — your mic is "Me", system audio is "Them" (+ optional Speaker A/B/C diarization).
 - 📝 **Structured notes** — summary, decisions, action items, full transcript per meeting.
+- 🧩 **Templates** — general, standup, 1:1, interview, sales call (Granola-style "Recipes").
+- 📊 **Talk-time analytics** — Me/Them ratio, words, turns, longest monologue per note.
 - 📤 **Exports** — Markdown, Apple Notes (iCloud or on-device), Google Docs.
-- 🔎 **Search** — full-text across every meeting.
-- 💻 **Two front-ends** — a native SwiftUI menu bar app and a Chrome extension.
+- 🔎 **Search & Ask** — full-text across every meeting, plus AI Q&A over your meetings.
+- 💻 **Two front-ends** — a native SwiftUI app and a Chrome extension.
 - 💸 **$0** — local Whisper + NVIDIA NIM's free tier (~500 meetings on signup credits).
 
 > **Why local-first?** Cloud notetakers upload your meeting audio to their servers.

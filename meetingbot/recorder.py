@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-from . import capture, config, exporters, notes, summarize, transcribe
+from . import analytics, capture, config, exporters, notes, summarize, transcribe
 
 log = logging.getLogger(__name__)
 
@@ -130,6 +130,10 @@ def _write_and_export(
     The markdown note is the source of truth (search reads it) and its path is
     returned. Additional targets (Apple Notes, Google Docs) are best-effort.
     """
+    if config.ANALYTICS:
+        stats = analytics.section(transcribe.load_segments(session_dir))
+        if stats:
+            summary_md = f"{summary_md.rstrip()}\n\n{stats}"
     results = exporters.run_exports(exporters.configured_targets(), meta, summary_md, transcript_md)
     note_path = Path(next(r.location for r in results if r.target == "markdown"))
     meta["note_path"] = str(note_path)
@@ -140,7 +144,9 @@ def _write_and_export(
     return note_path
 
 
-def build_summary(session_dir: Path, meta: dict[str, Any], transcript_md: str) -> str:
+def build_summary(
+    session_dir: Path, meta: dict[str, Any], transcript_md: str, template: str | None = None
+) -> str:
     notes_file = session_dir / "notes.txt"
     user_notes = notes_file.read_text() if notes_file.exists() else ""
     started = datetime.fromisoformat(meta["started_at"])
@@ -150,10 +156,11 @@ def build_summary(session_dir: Path, meta: dict[str, Any], transcript_md: str) -
         title=meta.get("title") or "",
         date=f"{started:%Y-%m-%d %H:%M}",
         duration=notes.format_duration(meta.get("duration_s")),
+        template=template or meta.get("template"),
     )
 
 
-def summarize_session(session_dir: Path) -> Path:
+def summarize_session(session_dir: Path, template: str | None = None) -> Path:
     """(Re)generate the summary + note for a finished session. Needs the API key."""
     session_dir = Path(session_dir)
     maybe_diarize(session_dir)
@@ -163,7 +170,7 @@ def summarize_session(session_dir: Path) -> Path:
         raise RuntimeError(
             f"no transcript in {session_dir} — run `mbot transcribe {session_dir.name}` first"
         )
-    summary = build_summary(session_dir, meta, transcript_md)
+    summary = build_summary(session_dir, meta, transcript_md, template=template)
     meta["summarized"] = True
     return _write_and_export(session_dir, meta, summary, transcript_md)
 
@@ -202,7 +209,9 @@ def _extract_summary(note_path: Path) -> str:
     return "\n".join(out).strip() or notes.PLACEHOLDER_SUMMARY
 
 
-def finalize_session(session_dir: Path, want_summary: bool = True) -> tuple[Path, bool]:
+def finalize_session(
+    session_dir: Path, want_summary: bool = True, template: str | None = None
+) -> tuple[Path, bool]:
     """Write the note for a finished session. Returns (note_path, summarized?).
 
     Without an API key the note still gets written with the transcript and a
@@ -210,7 +219,7 @@ def finalize_session(session_dir: Path, want_summary: bool = True) -> tuple[Path
     """
     session_dir = Path(session_dir)
     if want_summary and summarize.have_key():
-        return summarize_session(session_dir), True
+        return summarize_session(session_dir, template=template), True
     maybe_diarize(session_dir)
     meta = read_meta(session_dir)
     transcript_md = transcript_markdown(session_dir)

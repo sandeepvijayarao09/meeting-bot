@@ -120,11 +120,14 @@ def status() -> None:
 @app.command(name="summarize")
 def summarize_cmd(
     session: str = typer.Argument(None, help="Session name/path (default: latest)"),
+    template: str = typer.Option(
+        None, "--template", help="Meeting type: standup, one_on_one, interview, sales_call"
+    ),
 ) -> None:
     """(Re)summarize a finished session — for when the API key arrives later."""
     path = _resolve_session(session)
     try:
-        note_path = recorder.summarize_session(path)
+        note_path = recorder.summarize_session(path, template=template)
     except summarize.MissingAPIKeyError as e:
         typer.secho(str(e), fg="red")
         raise typer.Exit(1) from e
@@ -172,6 +175,9 @@ def auth_google() -> None:
 def process(
     session: str = typer.Argument(..., help="Session directory to process (from native capture)"),
     title: str = typer.Option(None, "--title", help="Meeting title for the note"),
+    template: str = typer.Option(
+        None, "--template", help="Meeting type: standup, one_on_one, interview, sales_call"
+    ),
     print_note_path: bool = typer.Option(
         False, "--print-note-path", help="Print only the resulting note path on the last line"
     ),
@@ -194,7 +200,7 @@ def process(
     if not print_note_path:
         typer.secho(f"transcribing {path.name}…", fg="cyan")
     t.transcribe_session(path)
-    note_path, summarized = recorder.finalize_session(path, want_summary=True)
+    note_path, summarized = recorder.finalize_session(path, want_summary=True, template=template)
     if print_note_path:
         typer.echo(str(note_path))
     else:

@@ -77,6 +77,12 @@ struct MenuContent: View {
 
       Divider()
 
+      Picker("Template", selection: $controller.template) {
+        ForEach(RecordingController.templates, id: \.id) { t in
+          Text(t.label).tag(t.id)
+        }
+      }
+
       Picker("Save notes to", selection: $controller.destination) {
         ForEach(RecordingController.destinations, id: \.id) { dest in
           Text(dest.label).tag(dest.id)

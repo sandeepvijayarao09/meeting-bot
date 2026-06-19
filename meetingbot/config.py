@@ -36,9 +36,28 @@ NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
 NIM_BASE_URL = os.environ.get("MBOT_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_MODEL = os.environ.get("MBOT_NIM_MODEL", "meta/llama-3.3-70b-instruct")
 
-PROMPT_TEMPLATE = PROJECT_ROOT / "prompts" / "meeting_summary.md"
+PROMPTS_DIR = PROJECT_ROOT / "prompts"
+PROMPT_TEMPLATE = PROMPTS_DIR / "meeting_summary.md"  # default / general
+
+# Meeting-type templates ("Recipes"): each is prompts/<name>.md sharing the same
+# {{TITLE}}/{{DATE}}/{{DURATION}}/{{NOTES}}/{{TRANSCRIPT}} tokens.
+TEMPLATE = os.environ.get("MBOT_TEMPLATE", "default")
+TEMPLATES = ["default", "standup", "one_on_one", "interview", "sales_call"]
+
+
+def resolve_template(name: str | None) -> Path:
+    """Path to a template prompt by name, falling back to the default."""
+    if name and name != "default":
+        candidate = PROMPTS_DIR / f"{name}.md"
+        if candidate.exists():
+            return candidate
+    return PROMPT_TEMPLATE
+
 
 SPEAKER_LABELS = {"mic": "Me", "sys": "Them"}
+
+# Include a talk-time analytics section in each note (Me/Them ratio, etc.).
+ANALYTICS = os.environ.get("MBOT_ANALYTICS", "1") not in ("0", "false", "no")
 
 # Export targets, comma-separated. "markdown" is always included implicitly.
 # Options: markdown, apple_notes, google_docs

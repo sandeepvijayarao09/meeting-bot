@@ -107,6 +107,16 @@ struct SettingsView: View {
 
   private var generalTab: some View {
     Form {
+      Section("Meeting") {
+        Picker("Template", selection: $controller.template) {
+          ForEach(RecordingController.templates, id: \.id) { t in
+            Text(t.label).tag(t.id)
+          }
+        }
+        Text("Shapes the summary for the meeting type (standup, 1:1, interview, sales).")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+
       Section("Saving") {
         Picker("Save notes to", selection: $controller.destination) {
           ForEach(RecordingController.destinations, id: \.id) { dest in

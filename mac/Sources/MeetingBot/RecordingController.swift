@@ -25,10 +25,23 @@ final class RecordingController: ObservableObject {
     didSet { UserDefaults.standard.set(destination, forKey: "destination") }
   }
 
+  /// Meeting-type template ("Recipe") that shapes the summary.
+  @Published var template: String {
+    didSet { UserDefaults.standard.set(template, forKey: "template") }
+  }
+
   static let destinations: [(id: String, label: String)] = [
     ("apple_notes", "Apple Notes"),
     ("google_docs", "Google Docs"),
     ("markdown", "Markdown files"),
+  ]
+
+  static let templates: [(id: String, label: String)] = [
+    ("default", "General"),
+    ("standup", "Standup"),
+    ("one_on_one", "1:1"),
+    ("interview", "Interview"),
+    ("sales_call", "Sales call"),
   ]
 
   private var recorder: SessionRecorder?
@@ -39,6 +52,7 @@ final class RecordingController: ObservableObject {
 
   init() {
     destination = UserDefaults.standard.string(forKey: "destination") ?? "apple_notes"
+    template = UserDefaults.standard.string(forKey: "template") ?? "default"
     // Ask for notification permission once at launch; notify() then just posts.
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     // Register + prompt for Screen Recording up front so it's granted before the
@@ -131,6 +145,7 @@ final class RecordingController: ObservableObject {
     // writes exactly where the Meetings window reads, wherever the app is installed.
     var env = ProcessInfo.processInfo.environment
     env["MBOT_EXPORTERS"] = destination
+    env["MBOT_TEMPLATE"] = template
     env["MBOT_NOTES_DIR"] = Paths.notesDirectory.path
     process.environment = env
     let pipe = Pipe()
