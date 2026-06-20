@@ -44,7 +44,7 @@ Transcriber (Python, local Whisper — mlx-whisper on Apple Silicon)
   - merges by timestamp → "Me:" / "Them:" labeled transcript   ← Granola's core trick
         │
         ▼
-Summarizer (NVIDIA NIM, llama-3.3-70b via OpenAI SDK, base_url=integrate.api.nvidia.com/v1)
+Summarizer (NVIDIA NIM, openai/gpt-oss-120b via OpenAI SDK, base_url=integrate.api.nvidia.com/v1)
   - TL;DR, key decisions, action items with owners, open questions
   - optionally merges with rough notes you typed during the meeting
         │
@@ -102,7 +102,7 @@ acceptance test passes.
    from openai import OpenAI
    client = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=KEY)
    r = client.chat.completions.create(
-       model="meta/llama-3.3-70b-instruct",
+       model="openai/gpt-oss-120b",
        messages=[{"role": "user", "content": "say hi"}])
    ```
 
@@ -149,7 +149,7 @@ transcript reads in correct order with correct me/them labels.
 `summarize.py` + `prompts/meeting_summary.md`:
 
 - One chat-completions call per meeting (chunk + reduce only if transcript exceeds the
-  context window — rarely needed; llama-3.3-70b takes 128k tokens).
+  context window — rarely needed; gpt-oss-120b takes 128k tokens).
 - Prompt produces: title, TL;DR (3 bullets), key discussion points, decisions, action
   items as `- [ ] task — owner — due`, open questions.
 - Granola-style enhancement: if you jotted rough notes during the meeting (a plain

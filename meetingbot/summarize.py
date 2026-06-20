@@ -13,7 +13,8 @@ from . import config
 if TYPE_CHECKING:
     from openai import OpenAI
 
-# llama-3.3-70b takes 128k tokens; stay far below to leave room for output.
+# gpt-oss-120b (and most NIM chat models) take 128k tokens; stay far below to
+# leave room for the model's output (and any reasoning tokens).
 MAX_DIRECT_CHARS = 240_000
 PIECE_CHARS = 80_000
 
@@ -68,7 +69,7 @@ def _log_usage(model: str, usage: Any) -> None:
 
 
 def complete(
-    system_prompt: str, user_prompt: str, max_tokens: int = 3000, temperature: float = 0.2
+    system_prompt: str, user_prompt: str, max_tokens: int = 4096, temperature: float = 0.2
 ) -> str:
     """One chat completion against NIM. Shared by summary + ask-my-meetings."""
     client = _client()
@@ -86,7 +87,7 @@ def complete(
     return (resp.choices[0].message.content or "").strip()
 
 
-def _chat(user_content: str, max_tokens: int = 3000) -> str:
+def _chat(user_content: str, max_tokens: int = 4096) -> str:
     return complete(SYSTEM_PROMPT, user_content, max_tokens=max_tokens)
 
 
@@ -149,6 +150,8 @@ def ping() -> str:
     resp = client.chat.completions.create(
         model=config.NIM_MODEL,
         messages=[{"role": "user", "content": "Reply with the single word: ok"}],
-        max_tokens=5,
+        # Reasoning models (e.g. gpt-oss) spend tokens thinking before answering,
+        # so give the probe enough headroom to actually emit the final word.
+        max_tokens=64,
     )
     return (resp.choices[0].message.content or "").strip()
