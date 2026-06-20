@@ -68,6 +68,17 @@ def _log_usage(model: str, usage: Any) -> None:
         pass
 
 
+def _reasoning_kwargs() -> dict[str, Any]:
+    """Pass `reasoning_effort` only to gpt-oss (a reasoning model). Non-reasoning
+    models (e.g. llama-3.3-70b) reject the param, so we omit it for them. "low"
+    effort keeps note quality while cutting latency/tokens ~40%; "none" disables.
+    """
+    level = config.NIM_REASONING
+    if level and level != "none" and "gpt-oss" in config.NIM_MODEL.lower():
+        return {"reasoning_effort": level}
+    return {}
+
+
 def complete(
     system_prompt: str, user_prompt: str, max_tokens: int = 4096, temperature: float = 0.2
 ) -> str:
@@ -81,6 +92,7 @@ def complete(
         ],
         temperature=temperature,
         max_tokens=max_tokens,
+        **_reasoning_kwargs(),
     )
     if resp.usage:
         _log_usage(config.NIM_MODEL, resp.usage)
@@ -153,5 +165,6 @@ def ping() -> str:
         # Reasoning models (e.g. gpt-oss) spend tokens thinking before answering,
         # so give the probe enough headroom to actually emit the final word.
         max_tokens=64,
+        **_reasoning_kwargs(),
     )
     return (resp.choices[0].message.content or "").strip()

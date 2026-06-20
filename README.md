@@ -168,6 +168,7 @@ Environment variables (in `~/.config/meetingbot/.env` or a repo-local `.env`):
 |---|---|---|
 | `NVIDIA_API_KEY` | — | free key from build.nvidia.com |
 | `MBOT_NIM_MODEL` | `openai/gpt-oss-120b` | summary model (any NIM chat model, e.g. `meta/llama-3.3-70b-instruct`) |
+| `MBOT_NIM_REASONING` | `low` | gpt-oss reasoning effort: `low`/`medium`/`high`/`none` (low ≈ 40% faster, equal quality for notes) |
 | `MBOT_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | local ASR model (≈1.6 GB, downloads on first use; use `mlx-community/whisper-small` on low disk/RAM) |
 | `MBOT_NOTES_DIR` | `./notes` | where Markdown notes go |
 | `MBOT_DATA_DIR` | `~/.local/share/meetingbot` | sessions, search index, usage log |

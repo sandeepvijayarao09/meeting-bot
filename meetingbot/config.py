@@ -35,6 +35,9 @@ WHISPER_MODEL = os.environ.get("MBOT_WHISPER_MODEL", "mlx-community/whisper-larg
 NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
 NIM_BASE_URL = os.environ.get("MBOT_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_MODEL = os.environ.get("MBOT_NIM_MODEL", "openai/gpt-oss-120b")
+# Reasoning effort for reasoning models (gpt-oss). "low" is ~40% faster and
+# cheaper than the default for note-taking with equal quality; "none" disables.
+NIM_REASONING = os.environ.get("MBOT_NIM_REASONING", "low").strip().lower()
 
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 PROMPT_TEMPLATE = PROMPTS_DIR / "meeting_summary.md"  # default / general

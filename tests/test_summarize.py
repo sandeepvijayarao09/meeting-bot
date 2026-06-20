@@ -41,6 +41,24 @@ class TestApiKeyHandling:
         assert summarize.have_key()
 
 
+class TestReasoningKwargs:
+    def test_gpt_oss_gets_low_effort(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(config, "NIM_MODEL", "openai/gpt-oss-120b")
+        monkeypatch.setattr(config, "NIM_REASONING", "low")
+        assert summarize._reasoning_kwargs() == {"reasoning_effort": "low"}
+
+    def test_non_reasoning_model_omits_param(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # llama-3.3-70b rejects reasoning_effort, so it must not be sent.
+        monkeypatch.setattr(config, "NIM_MODEL", "meta/llama-3.3-70b-instruct")
+        monkeypatch.setattr(config, "NIM_REASONING", "low")
+        assert summarize._reasoning_kwargs() == {}
+
+    def test_none_disables_even_for_gpt_oss(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(config, "NIM_MODEL", "openai/gpt-oss-120b")
+        monkeypatch.setattr(config, "NIM_REASONING", "none")
+        assert summarize._reasoning_kwargs() == {}
+
+
 class TestSummarizeMeeting:
     def test_single_call_embeds_everything(self, monkeypatch: pytest.MonkeyPatch) -> None:
         prompts: list[str] = []
