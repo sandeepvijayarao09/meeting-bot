@@ -134,6 +134,30 @@ class TestSeedContext:
         assert ctx["sys"] == "beta"
 
 
+class TestVocabHint:
+    def test_uses_meeting_title(self, tmp_path: Path) -> None:
+        (tmp_path / "meta.json").write_text(json.dumps({"title": "Postgres Migration Sync"}))
+        assert "Postgres Migration Sync" in transcribe._vocab_hint(tmp_path)
+
+    def test_includes_configured_vocab(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(transcribe.config, "VOCAB", "Kubernetes, OAuth")
+        (tmp_path / "meta.json").write_text(json.dumps({"title": "Infra review"}))
+        hint = transcribe._vocab_hint(tmp_path)
+        assert "Infra review" in hint and "Kubernetes, OAuth" in hint
+
+    def test_empty_when_nothing_set(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(transcribe.config, "VOCAB", "")
+        (tmp_path / "meta.json").write_text(json.dumps({"title": None}))
+        assert transcribe._vocab_hint(tmp_path) == ""
+
+    def test_survives_malformed_meta(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(transcribe.config, "VOCAB", "")
+        (tmp_path / "meta.json").write_text("0")  # valid JSON, not a dict
+        assert transcribe._vocab_hint(tmp_path) == ""
+
+
 class TestFormatting:
     def test_format_transcript(self) -> None:
         turns = [{"speaker": "Me", "start": 65.0, "end": 67.0, "text": "hi"}]

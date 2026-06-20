@@ -160,6 +160,24 @@ def _seed_context(session_dir: Path) -> dict[str, str]:
     return context
 
 
+def _vocab_hint(session_dir: Path) -> str:
+    """Spelling bias for Whisper: the meeting title plus any configured domain
+    vocabulary, so product names and jargon (Postgres, OAuth, Kubernetes...) are
+    transcribed correctly instead of phonetically. Empty when nothing is set."""
+    parts: list[str] = []
+    meta_path = session_dir / "meta.json"
+    if meta_path.exists():
+        try:
+            title = (json.loads(meta_path.read_text()).get("title") or "").strip()
+        except (ValueError, OSError, AttributeError):
+            title = ""
+        if title:
+            parts.append(title)
+    if config.VOCAB:
+        parts.append(config.VOCAB)
+    return f"Meeting about {'; '.join(parts)}." if parts else ""
+
+
 def transcribe_session(
     session_dir: Path,
     model: str | None = None,
@@ -180,14 +198,16 @@ def transcribe_session(
     # across chunk boundaries). Seed from any already-processed segments so a
     # resumed transcription keeps its context too.
     context = _seed_context(session_dir)
+    # Domain-vocabulary spelling hint (meeting title + configured glossary),
+    # prepended to each chunk's rolling context so jargon is spelled correctly.
+    hint = _vocab_hint(session_dir)
 
     while True:
         pending = [e for e in read_manifest(session_dir) if e["file"] not in done]
         for entry in pending:
             stream = entry["stream"]
-            segments = transcribe_entry(
-                session_dir, entry, model, initial_prompt=context.get(stream, "")
-            )
+            prompt = f"{hint} {context.get(stream, '')}".strip()
+            segments = transcribe_entry(session_dir, entry, model, initial_prompt=prompt)
             with transcript_path.open("a") as f:
                 for seg in segments:
                     f.write(json.dumps(seg) + "\n")

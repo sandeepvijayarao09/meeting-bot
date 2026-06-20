@@ -31,6 +31,10 @@ AUDIOCAP_BIN = _path("MBOT_AUDIOCAP", PROJECT_ROOT / "mac" / ".build" / "release
 
 CHUNK_SECONDS = int(os.environ.get("MBOT_CHUNK_SECONDS", "30"))
 WHISPER_MODEL = os.environ.get("MBOT_WHISPER_MODEL", "mlx-community/whisper-large-v3-turbo")
+# Optional domain vocabulary (product names, jargon, people) seeded into Whisper
+# so they're spelled correctly instead of phonetically ("Postgres", not "PostGas").
+# Comma/space separated, e.g. "Postgres, Kubernetes, OAuth".
+VOCAB = os.environ.get("MBOT_VOCAB", "").strip()
 
 NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
 NIM_BASE_URL = os.environ.get("MBOT_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
