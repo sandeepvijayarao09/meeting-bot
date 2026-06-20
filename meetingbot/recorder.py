@@ -171,6 +171,12 @@ def summarize_session(session_dir: Path, template: str | None = None) -> Path:
             f"no transcript in {session_dir} — run `mbot transcribe {session_dir.name}` first"
         )
     summary = build_summary(session_dir, meta, transcript_md, template=template)
+    if not meta.get("title"):
+        # No calendar/extension title: name the note from its content, like a
+        # smart calendar entry, instead of a generic "Meeting Jun 20 14:30".
+        generated = summarize.generate_title(summary, transcript_md)
+        if generated:
+            meta["title"] = generated
     meta["summarized"] = True
     return _write_and_export(session_dir, meta, summary, transcript_md)
 

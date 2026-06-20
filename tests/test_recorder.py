@@ -54,6 +54,36 @@ class TestFinalizeSession:
         assert "great meeting" in note_path.read_text()
         assert recorder.read_meta(session)["summarized"] is True
 
+    def test_auto_titles_when_no_title(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from meetingbot import summarize
+
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(summarize, "summarize_meeting", lambda *a, **k: "## Summary\n- launch")
+        monkeypatch.setattr(summarize, "generate_title", lambda *a, **k: "Q3 Launch Planning")
+        session = fake_session(isolated, name="20260612-090000-untitled")
+        meta = recorder.read_meta(session)
+        meta["title"] = None
+        recorder.write_meta(session, meta)
+
+        recorder.summarize_session(session)
+        assert recorder.read_meta(session)["title"] == "Q3 Launch Planning"
+
+    def test_keeps_explicit_title(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from meetingbot import summarize
+
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(summarize, "summarize_meeting", lambda *a, **k: "## Summary\n- x")
+
+        def fail(*a: object, **k: object) -> str:
+            raise AssertionError("generate_title must not run when a title exists")
+
+        monkeypatch.setattr(summarize, "generate_title", fail)
+        session = fake_session(isolated)  # title "Sync"
+        recorder.summarize_session(session)
+        assert recorder.read_meta(session)["title"] == "Sync"
+
     def test_summarize_session_without_transcript_raises(self, isolated: Path) -> None:
         session = config.SESSIONS_DIR / "20260612-110000-empty"
         session.mkdir(parents=True)

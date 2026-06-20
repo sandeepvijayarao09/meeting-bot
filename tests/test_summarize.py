@@ -59,6 +59,35 @@ class TestReasoningKwargs:
         assert summarize._reasoning_kwargs() == {}
 
 
+class TestGenerateTitle:
+    def test_strips_quotes_label_and_punctuation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(summarize, "complete", lambda *a, **k: 'Title: "Q3 Launch Planning."')
+        assert summarize.generate_title("## Summary\n- launch") == "Q3 Launch Planning"
+
+    def test_takes_first_nonempty_line(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(summarize, "complete", lambda *a, **k: "\n\nBilling Rewrite Sync\n")
+        assert summarize.generate_title("notes") == "Billing Rewrite Sync"
+
+    def test_empty_source_skips_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        called = False
+
+        def boom(*a: object, **k: object) -> str:
+            nonlocal called
+            called = True
+            return "x"
+
+        monkeypatch.setattr(summarize, "complete", boom)
+        assert summarize.generate_title("", "") == ""
+        assert not called
+
+    def test_api_failure_returns_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def boom(*a: object, **k: object) -> str:
+            raise RuntimeError("network down")
+
+        monkeypatch.setattr(summarize, "complete", boom)
+        assert summarize.generate_title("some notes") == ""
+
+
 class TestSummarizeMeeting:
     def test_single_call_embeds_everything(self, monkeypatch: pytest.MonkeyPatch) -> None:
         prompts: list[str] = []

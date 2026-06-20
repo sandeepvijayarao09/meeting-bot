@@ -103,6 +103,40 @@ def _chat(user_content: str, max_tokens: int = 4096) -> str:
     return complete(SYSTEM_PROMPT, user_content, max_tokens=max_tokens)
 
 
+TITLE_SYSTEM = (
+    "You write short, specific meeting titles, like a smart calendar entry. "
+    "Capture the main topic or outcome, never the date."
+)
+
+
+def generate_title(summary: str, transcript: str = "") -> str:
+    """A concise, descriptive title (3-8 words) for a meeting, from its notes.
+
+    Best-effort: returns "" if the model is unavailable or the meeting is empty,
+    so the caller can fall back to a timestamp title without failing finalize.
+    """
+    source = (summary or "").strip() or (transcript or "").strip()
+    if not source:
+        return ""
+    user = (
+        "Give a short, specific title (3 to 8 words) for this meeting. Capture the "
+        "main topic or decision. Use Title Case. No quotes, no date, no trailing "
+        "punctuation, no 'Title:' prefix. Output the title only.\n\n" + source[:4000]
+    )
+    try:
+        raw = complete(TITLE_SYSTEM, user, max_tokens=256, temperature=0.3)
+    except Exception:  # best-effort: any API/network/key error -> fall back
+        return ""
+    for line in raw.splitlines():
+        cleaned = line.strip().lstrip("#").strip()
+        if cleaned[:6].lower() == "title:":
+            cleaned = cleaned[6:].strip()
+        cleaned = cleaned.strip("\"'").rstrip(".")
+        if cleaned:
+            return cleaned[:80]
+    return ""
+
+
 def _split_on_lines(text: str, piece_chars: int) -> list[str]:
     pieces: list[str] = []
     current: list[str] = []
