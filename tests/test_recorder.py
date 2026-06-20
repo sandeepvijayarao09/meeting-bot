@@ -92,6 +92,40 @@ class TestFinalizeSession:
             recorder.summarize_session(session)
 
 
+class TestRecoverSalvage:
+    def test_rebuilds_manifest_from_orphaned_wavs(self, isolated: Path) -> None:
+        from tests.conftest import tone, write_wav
+
+        session = config.SESSIONS_DIR / "20260612-120000-crash"
+        session.mkdir(parents=True)
+        (session / "manifest.jsonl").write_text("")  # empty: crash before chunk close
+        write_wav(session / "mic-0001.wav", tone(seconds=1.0))
+        write_wav(session / "sys-0001.wav", tone(seconds=1.0))
+
+        recorder._rebuild_manifest(session)
+        lines = [json.loads(x) for x in (session / "manifest.jsonl").read_text().splitlines()]
+        streams = {e["stream"]: e for e in lines}
+        assert set(streams) == {"mic", "sys"}
+        assert streams["mic"]["file"] == "mic-0001.wav"
+        assert streams["mic"]["start"] == 0.0
+        assert streams["mic"]["end"] == pytest.approx(1.0, abs=0.05)
+
+    def test_orphaned_wavs_are_seen_as_unfinished(self, isolated: Path) -> None:
+        from tests.conftest import tone, write_wav
+
+        session = config.SESSIONS_DIR / "20260612-130000-orphan"
+        session.mkdir(parents=True)
+        write_wav(session / "mic-0001.wav", tone(seconds=0.5))  # no manifest at all
+        assert session in recorder.unfinished_sessions()
+
+    def test_recovered_empty_not_retried(self, isolated: Path) -> None:
+        session = config.SESSIONS_DIR / "20260612-140000-silent"
+        session.mkdir(parents=True)
+        (session / "manifest.jsonl").write_text("")
+        recorder.write_meta(session, {"started_at": "2026-06-12T14:00:00", "recovered_empty": True})
+        assert session not in recorder.unfinished_sessions()
+
+
 class TestEnsureMeta:
     def test_synthesizes_meta_for_native_session(self, isolated: Path) -> None:
         session = config.SESSIONS_DIR / "20260613-100000-meeting"

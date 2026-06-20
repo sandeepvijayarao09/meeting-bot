@@ -7,7 +7,9 @@ import contextlib
 import json
 import logging
 import os
+import re
 import subprocess
+import wave
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +18,18 @@ from typing import Any, cast
 from . import analytics, capture, config, exporters, notes, summarize, transcribe
 
 log = logging.getLogger(__name__)
+
+# Chunk WAVs are named "<stream>-<index>.wav", e.g. "mic-0001.wav".
+_WAV_CHUNK_RE = re.compile(r"^(mic|sys)-(\d+)\.wav$")
+
+
+def _wav_duration(path: Path) -> float:
+    """Seconds of audio in a WAV, read from its header (no full decode)."""
+    try:
+        with wave.open(str(path), "rb") as w:
+            return w.getnframes() / float(w.getframerate())
+    except (wave.Error, OSError, ZeroDivisionError):
+        return 0.0
 
 
 def read_meta(session_dir: Path) -> dict[str, Any]:
@@ -249,24 +263,65 @@ def latest_session() -> Path | None:
 
 
 def unfinished_sessions() -> list[Path]:
-    """Sessions with captured audio (a manifest) that never produced a note —
-    e.g. the app was force-quit or crashed mid-meeting. Excludes the session
-    currently recording and any already finalized."""
+    """Sessions with captured audio that never produced a note — e.g. the app was
+    force-quit or crashed mid-meeting. Includes sessions whose manifest is empty
+    or missing but that still have orphaned WAV chunks on disk (a crash before the
+    first chunk closed). Excludes the session currently recording, ones already
+    finalized, and ones we already determined had no speech."""
     if not config.SESSIONS_DIR.exists():
         return []
     current = current_recording()
     current_dir = Path(current["session_dir"]).resolve() if current else None
     result: list[Path] = []
     for s in sorted(config.SESSIONS_DIR.iterdir()):
-        if not s.is_dir() or not (s / "manifest.jsonl").exists():
+        if not s.is_dir():
+            continue
+        has_audio = (s / "manifest.jsonl").exists() or any(s.glob("*.wav"))
+        if not has_audio:
             continue
         if current_dir is not None and s.resolve() == current_dir:
             continue
-        meta_path = s / "meta.json"
-        if meta_path.exists() and read_meta(s).get("note_path"):
-            continue  # already finalized
+        if (s / "meta.json").exists():
+            meta = read_meta(s)
+            if meta.get("note_path") or meta.get("recovered_empty"):
+                continue  # already finalized, or already known to be silent
         result.append(s)
     return result
+
+
+def _rebuild_manifest(session_dir: Path) -> None:
+    """Reconstruct manifest.jsonl from orphaned WAV chunks on disk.
+
+    The native recorder registers a chunk in the manifest only when the chunk
+    closes; a crash/force-quit before that (e.g. a meeting shorter than one chunk)
+    leaves WAVs with no manifest entries, which `recover` needs to salvage them.
+    Each chunk's start is the cumulative duration of earlier chunks in its stream.
+    """
+    chunks: dict[str, list[tuple[int, Path]]] = {}
+    for wav in session_dir.glob("*.wav"):
+        match = _WAV_CHUNK_RE.match(wav.name)
+        if match:
+            chunks.setdefault(match.group(1), []).append((int(match.group(2)), wav))
+    if not chunks:
+        return
+    entries: list[dict[str, Any]] = []
+    for stream, items in chunks.items():
+        start = 0.0
+        for _idx, wav in sorted(items):
+            duration = _wav_duration(wav)
+            entries.append(
+                {
+                    "file": wav.name,
+                    "stream": stream,
+                    "start": round(start, 2),
+                    "end": round(start + duration, 2),
+                }
+            )
+            start += duration
+    entries.sort(key=lambda e: (e["start"], e["stream"]))
+    with (session_dir / "manifest.jsonl").open("w") as f:
+        for entry in entries:
+            f.write(json.dumps(entry) + "\n")
 
 
 def recover(template: str | None = None) -> list[Path]:
@@ -274,10 +329,17 @@ def recover(template: str | None = None) -> list[Path]:
     the note paths produced. Safe to call on launch; a no-op when nothing pending."""
     notes_made: list[Path] = []
     for session in unfinished_sessions():
-        ensure_meta(session)
+        manifest = session / "manifest.jsonl"
+        if not manifest.exists() or manifest.stat().st_size == 0:
+            _rebuild_manifest(session)  # salvage orphaned WAVs from a hard crash
+        ensure_meta(session)  # after rebuild, so duration is derived from the chunks
         transcribe.transcribe_session(session)
         if not transcript_markdown(session):
-            continue  # nothing was actually said; skip empty captures
+            # No speech captured: mark it so we don't retry on every launch.
+            meta = read_meta(session)
+            meta["recovered_empty"] = True
+            write_meta(session, meta)
+            continue
         note_path, _ = finalize_session(session, want_summary=True, template=template)
         notes_made.append(note_path)
     return notes_made
