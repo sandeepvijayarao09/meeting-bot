@@ -28,7 +28,11 @@ Praise given or received, and constructive feedback. If none, write "None."
 Career goals, skills, opportunities discussed. If none, write "None."
 
 ## Action items
-- [ ] task — owner — due date (capture commitments by either person)
+Every task either person committed to or was asked to do, INCLUDING soft
+commitments ("I'll look into it", "let's revisit next time"). Always capture the
+task; set the owner to whoever took it on (Me/Them or a name), or leave blank if
+unclear — never invent an owner or date. Add a due/timeframe only if stated.
+- [ ] task — owner — due
 If none, write "None."
 
 ## Follow up next time

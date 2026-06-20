@@ -29,7 +29,12 @@ Must-haves, evaluation criteria, budget/timeline signals mentioned.
 Pushback raised and how it was (or wasn't) addressed. If none, write "None."
 
 ## Next steps
-- [ ] action — owner — due date (follow-ups, demos, proposals, intros)
+Every follow-up either side committed to — demos, proposals, intros, internal
+checks — INCLUDING soft commitments ("I'll send pricing", "let me loop in our
+champion"). Always capture the action; set the owner to whoever took it on (Me/Them
+or a name), or leave blank if unclear — never invent an owner or date. Add a
+due/timeframe only if stated.
+- [ ] action — owner — due
 If none, write "None."
 
 ## Deal signals

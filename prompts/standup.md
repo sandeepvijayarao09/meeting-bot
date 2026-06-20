@@ -25,7 +25,11 @@ Group by person/speaker. For each, capture:
 - **Blockers** — anything blocking them (or "None")
 
 ## Action items
-- [ ] task — owner — due date (only if an owner/date was actually mentioned)
+Every task someone committed to or was asked to do, INCLUDING soft commitments
+("I'll look into it", "can you follow up"). Always capture the task; set the owner
+to whoever took it on (a name, or Me/Them), or leave blank if unclear — never
+invent an owner or date. Add a due/timeframe only if stated.
+- [ ] task — owner — due
 If none, write "None."
 
 ## Blockers to resolve
