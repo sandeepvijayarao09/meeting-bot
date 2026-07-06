@@ -14,6 +14,7 @@ for label in com.meetingbot.serve com.meetingbot.menubar; do
   fi
 done
 
-rm -rf "/Applications/MeetingBot.app" && echo "removed /Applications/MeetingBot.app"
+APP_NAME="${APP_NAME:-MB}"  # must match scripts/build-app.sh / install-macos.sh
+rm -rf "/Applications/${APP_NAME}.app" && echo "removed /Applications/${APP_NAME}.app"
 rm -f "$HOME/.local/bin/mbot" && echo "removed ~/.local/bin/mbot"
 echo "(notes, recordings, and the PATH line in ~/.zshrc were left in place)"

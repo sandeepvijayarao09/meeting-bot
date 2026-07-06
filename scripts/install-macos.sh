@@ -9,6 +9,7 @@ set -euo pipefail
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$HOME/.local/bin"
 UV="$(command -v uv || echo /opt/homebrew/bin/uv)"
+APP_NAME="${APP_NAME:-MB}"  # must match scripts/build-app.sh's output (dist/${APP_NAME}.app)
 
 echo "▸ Meeting Bot install — project: $PROJECT"
 [ -x "$UV" ] || { echo "✗ uv not found. Install: brew install uv"; exit 1; }
@@ -19,13 +20,13 @@ echo "▸ Building the app + capture helper (Swift)…"
 echo "▸ Syncing Python environment…"
 ( cd "$PROJECT" && "$UV" sync >/dev/null )
 
-echo "▸ Building MeetingBot.app…"
-bash "$PROJECT/scripts/build-app.sh" >/dev/null
+echo "▸ Building ${APP_NAME}.app…"
+APP_NAME="$APP_NAME" bash "$PROJECT/scripts/build-app.sh" >/dev/null
 
-echo "▸ Installing MeetingBot.app to /Applications…"
-rm -rf "/Applications/MeetingBot.app"
-cp -R "$PROJECT/dist/MeetingBot.app" "/Applications/"
-xattr -cr "/Applications/MeetingBot.app" 2>/dev/null || true
+echo "▸ Installing ${APP_NAME}.app to /Applications…"
+rm -rf "/Applications/${APP_NAME}.app"
+cp -R "$PROJECT/dist/${APP_NAME}.app" "/Applications/"
+xattr -cr "/Applications/${APP_NAME}.app" 2>/dev/null || true
 
 mkdir -p "$BIN"
 echo "▸ Installing mbot CLI to $BIN/mbot"
@@ -43,7 +44,7 @@ fi
 
 echo
 echo "✓ Installed — nothing runs in the background. Next:"
-echo "  1. Open MeetingBot.app (Spotlight → 'Meeting Bot'). Click Start to record; Stop to make a note."
+echo "  1. Open ${APP_NAME}.app (Spotlight → 'Meeting Bot'). Click Start to record; Stop to make a note."
 echo "  2. Optional summaries: add a free NVIDIA key in Settings (or"
 echo "     echo 'NVIDIA_API_KEY=nvapi-...' > ~/.config/meetingbot/.env)."
 echo "  3. First Start prompts for Microphone + Screen Recording — grant, then reopen the app."
