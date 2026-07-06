@@ -1,4 +1,4 @@
-# Distributing MeetingBot.app
+# Distributing MB.app
 
 The native menu bar app lives in `mac/` (a SwiftPM package: `CaptureKit` library +
 `audiocap` CLI + `MeetingBot` app). These scripts turn it into a shippable, signed,
@@ -7,9 +7,9 @@ notarized `.app` + DMG.
 ## TL;DR
 
 ```bash
-make app                       # build dist/MeetingBot.app (ad-hoc signed, runs locally)
-open dist/MeetingBot.app       # 🎤 appears in the menu bar
-bash scripts/build-dmg.sh      # dist/MeetingBot-<version>.dmg (drag-to-Applications)
+make app                       # build dist/MB.app (ad-hoc signed, runs locally)
+open dist/MB.app       # 🎤 appears in the menu bar
+bash scripts/build-dmg.sh      # dist/MB-<version>-<build>.dmg (drag-to-Applications)
 ```
 
 For a build other people can run without Gatekeeper warnings, you need an Apple
@@ -25,7 +25,7 @@ bash scripts/sign-notarize.sh
 
 | Script | What it does |
 |---|---|
-| `scripts/build-app.sh` | compiles the app, assembles `MeetingBot.app` (Info.plist, entitlements, icon), signs it (ad-hoc, or Developer ID if `DEVELOPER_ID` is set) |
+| `scripts/build-app.sh` | compiles the app, assembles `MB.app` (Info.plist, entitlements, icon), signs it (ad-hoc, or Developer ID if `DEVELOPER_ID` is set) |
 | `scripts/build-sidecar.sh` | freezes the `mbot` Python pipeline into a standalone binary via PyInstaller, so users need no Python/venv |
 | `scripts/build-dmg.sh` | packages the app into a drag-to-install DMG |
 | `scripts/sign-notarize.sh` | full release: Developer-ID sign → notarize → staple |
@@ -36,7 +36,7 @@ The app captures audio natively (CaptureKit) and shells out to `mbot process <di
 for local Whisper transcription + NIM summary + export. It locates `mbot` in this
 order (`mac/Sources/MeetingBot/Paths.swift`):
 
-1. **Bundled sidecar** — `MeetingBot.app/Contents/Resources/mbot` (a shipped build).
+1. **Bundled sidecar** — `MB.app/Contents/Resources/mbot` (a shipped build).
 2. **`MBOT_BIN`** env var — an explicit path.
 3. **Dev venv** — `<project>/.venv/bin/mbot` (what you get during development).
 

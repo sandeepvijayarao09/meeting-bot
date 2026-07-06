@@ -89,8 +89,8 @@ a Dock app with a Meetings window and a menu-bar 🎤. It captures audio in-proc
 hands each meeting to the local pipeline.
 
 ```bash
-make app                  # build dist/MeetingBot.app
-open dist/MeetingBot.app   # opens the Meetings window; 🎤 in the menu bar
+make app                  # build dist/MB.app
+open dist/MB.app          # opens the Meetings window; 🎤 in the menu bar
 ```
 
 **Click-to-record only.** The app does nothing until you click **Start Recording** —
