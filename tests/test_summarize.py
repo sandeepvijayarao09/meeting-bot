@@ -40,6 +40,15 @@ class TestApiKeyHandling:
         monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
         assert summarize.have_key()
 
+    def test_client_bounds_request_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # A slow NIM must not hang Stop→"Processing…" for the SDK's 600s default: the
+        # client is built with the configured (bounded) timeout.
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "NIM_TIMEOUT", 42.0)
+        client = summarize._client()
+        assert client.timeout == 42.0
+        assert client.max_retries == 1
+
 
 class TestReasoningKwargs:
     def test_gpt_oss_gets_low_effort(self, monkeypatch: pytest.MonkeyPatch) -> None:

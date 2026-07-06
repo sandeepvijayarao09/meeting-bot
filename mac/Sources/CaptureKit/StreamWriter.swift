@@ -17,6 +17,7 @@ final class StreamWriter {
   private let queue: DispatchQueue
   private let outputFormat: AVAudioFormat
   private var converter: AVAudioConverter?
+  private var inputFormat: AVAudioFormat?
   private var file: AVAudioFile?
   private var currentFileName = ""
   private var chunkIndex = 0
@@ -55,8 +56,12 @@ final class StreamWriter {
 
   private func process(_ inputBuffer: AVAudioPCMBuffer) {
     guard inputBuffer.frameLength > 0 else { return }
-    if converter == nil {
+    // (Re)build the converter when the input format changes mid-session — e.g. a route
+    // change (AirPods connect) swaps the mic's sample rate. A converter cached against
+    // the old format would fail every subsequent buffer and silently drop the audio.
+    if inputFormat == nil || !inputFormat!.isEqual(inputBuffer.format) {
       converter = AVAudioConverter(from: inputBuffer.format, to: outputFormat)
+      inputFormat = inputBuffer.format
     }
     guard let converter else {
       logError("\(stream): no converter for format \(inputBuffer.format)")

@@ -14,7 +14,7 @@ from pathlib import Path
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from meetingbot import diarize, notes, recorder, transcribe
+from meetingbot import diarize, notes, recorder, refine, transcribe
 from meetingbot.diarize import SpeakerTurn
 from meetingbot.exporters import mdconvert
 from meetingbot.server import SAMPLE_RATE, ChunkWriter
@@ -79,6 +79,88 @@ class TestDiarizeProperties:
             elif "sub_speaker" in result:
                 # A label was assigned only when a turn actually overlaps.
                 assert result["sub_speaker"] in {t.speaker for t in turns}
+
+
+# "Many spaces": filler/discourse/punctuation tokens joined by random runs of
+# whitespace (spaces, tabs, newlines), to stress the cleaners' whitespace handling.
+_REFINE_TOKENS = st.sampled_from(
+    [
+        "um",
+        "uh",
+        "er",
+        "hmm",
+        "ah",
+        "the",
+        "I",
+        "i",
+        "think",
+        "we",
+        "should",
+        "ship",
+        "it",
+        "plan",
+        "looks",
+        "good",
+        "yeah",
+        "okay,",
+        "so,",
+        "like,",
+        "you",
+        "know,",
+        "mean,",
+        "1,000",
+        "—",
+        "...",
+        ".",
+        ",",
+        "!",
+        "?",
+    ]
+)
+_WS = st.text(alphabet=" \t\n", min_size=1, max_size=8)
+_spacey_text = st.builds(
+    lambda lead, pairs: lead + "".join(tok + ws for tok, ws in pairs),
+    _WS,
+    st.lists(st.tuples(_REFINE_TOKENS, _WS), max_size=15),
+)
+
+
+class TestRefineProperties:
+    @settings(max_examples=1000)
+    @given(_spacey_text)
+    def test_clean_text_invariants(self, raw: str) -> None:
+        out = refine.clean_text(raw)
+        # However many spaces/tabs/newlines the input had, whitespace is fully
+        # normalized: single spaces only, and the result is stripped.
+        assert out == out.strip()
+        assert not re.search(r"\s\s|\t|\n", out)
+        # Cleaning is idempotent — a second pass changes nothing.
+        assert refine.clean_text(out) == out
+        # No vocalized filler survives on its own.
+        assert not re.search(r"\b(?:um+|uh+|hmm+)\b", out, re.IGNORECASE)
+
+    @settings(max_examples=1000)
+    @given(
+        st.lists(
+            st.builds(
+                lambda sp, s, d, t: {"speaker": sp, "start": s, "end": s + d, "text": t},
+                speakers,
+                times,
+                st.floats(min_value=0, max_value=30, allow_nan=False, allow_infinity=False),
+                _spacey_text,
+            ),
+            max_size=12,
+        )
+    )
+    def test_clean_turns_preserves_metadata(self, turns: list[dict]) -> None:
+        cleaned = refine.clean_turns(turns)
+        assert len(cleaned) <= len(turns)
+        # Output keeps input order and only rewrites text: each cleaned turn matches
+        # some input turn's speaker/start/end (a subsequence), and is never empty.
+        keys = iter((t["speaker"], t["start"], t["end"]) for t in turns)
+        for c in cleaned:
+            assert c["text"]
+            assert (c["speaker"], c["start"], c["end"]) in keys
 
 
 class TestFtsQueryFuzz:

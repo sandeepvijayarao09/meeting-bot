@@ -46,7 +46,14 @@ def _client() -> "OpenAI":
         )
     from openai import OpenAI
 
-    return OpenAI(base_url=config.NIM_BASE_URL, api_key=config.NVIDIA_API_KEY)
+    # Bound the request time: the SDK default (600s) can hang Stop→"Processing…" for
+    # 10 minutes if NIM is slow. One retry keeps the worst case ~2x NIM_TIMEOUT.
+    return OpenAI(
+        base_url=config.NIM_BASE_URL,
+        api_key=config.NVIDIA_API_KEY,
+        timeout=config.NIM_TIMEOUT,
+        max_retries=1,
+    )
 
 
 def _log_usage(model: str, usage: Any) -> None:
@@ -158,6 +165,18 @@ def _fill(template: str, **values: str) -> str:
     return template
 
 
+def condense_if_long(text: str) -> str:
+    """Map-reduce an over-long transcript into condensed minutes (one NIM pass per
+    piece), or return it unchanged when it already fits the model window. Shared by
+    summary generation and the text-transform tools."""
+    if len(text) <= MAX_DIRECT_CHARS:
+        return text
+    return "\n\n".join(
+        _chat(CONDENSE_PROMPT + piece, max_tokens=2000)
+        for piece in _split_on_lines(text, PIECE_CHARS)
+    )
+
+
 def summarize_meeting(
     transcript: str,
     user_notes: str = "",
@@ -171,12 +190,7 @@ def summarize_meeting(
     `template` selects a meeting-type prompt ("standup", "one_on_one", …); None
     uses the default/general template.
     """
-    if len(transcript) > MAX_DIRECT_CHARS:
-        condensed = [
-            _chat(CONDENSE_PROMPT + piece, max_tokens=2000)
-            for piece in _split_on_lines(transcript, PIECE_CHARS)
-        ]
-        transcript = "\n\n".join(condensed)
+    transcript = condense_if_long(transcript)
 
     template_text = config.resolve_template(template or config.TEMPLATE).read_text()
     prompt = _fill(
@@ -191,8 +205,10 @@ def summarize_meeting(
 
 
 def ping() -> str:
-    """Cheap connectivity check used by `mbot doctor`."""
-    client = _client()
+    """Cheap connectivity check used by `mbot doctor`. Uses a short timeout and no
+    retries so a slow/unreachable NIM makes the diagnostic fail fast (~10s) instead of
+    stalling for minutes on the normal request timeout."""
+    client = _client().with_options(timeout=10.0, max_retries=0)
     resp = client.chat.completions.create(
         model=config.NIM_MODEL,
         messages=[{"role": "user", "content": "Reply with the single word: ok"}],

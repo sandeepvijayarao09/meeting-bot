@@ -35,8 +35,9 @@ class TestFinalizeSession:
         assert not summarized
         body = note_path.read_text()
         assert notes.PLACEHOLDER_SUMMARY in body
-        assert "**Me** [00:00]: hello team" in body
-        assert "**Them** [00:03]: hi there" in body
+        # The note's transcript is now the refined version (sentence-start capitalized).
+        assert "**Me** [00:00]: Hello team" in body
+        assert "**Them** [00:03]: Hi there" in body
         meta = recorder.read_meta(session)
         assert meta["note_path"] == str(note_path)
         assert meta["summarized"] is False
@@ -92,6 +93,84 @@ class TestFinalizeSession:
             recorder.summarize_session(session)
 
 
+class TestRefineWiring:
+    def test_note_transcript_is_refined(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(recorder.refine, "refine_transcript", lambda *a, **k: "REFINED BODY")
+        session = fake_session(isolated)
+        note_path, _ = recorder.finalize_session(session)
+        assert "REFINED BODY" in note_path.read_text()
+
+    def test_summarizer_receives_refined_text(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from meetingbot import summarize
+
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(recorder.refine, "refine_transcript", lambda *a, **k: "REFINED BODY")
+        seen: dict[str, str] = {}
+
+        def fake_summarize(transcript: str, **k: object) -> str:
+            seen["transcript"] = transcript
+            return "## Summary\n- ok"
+
+        monkeypatch.setattr(summarize, "summarize_meeting", fake_summarize)
+        recorder.summarize_session(fake_session(isolated))
+        assert seen["transcript"] == "REFINED BODY"
+
+    def test_summarizer_falls_back_to_raw_when_refine_empties(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # An all-filler meeting refines to empty even though the raw guard passed. The
+        # summarizer must receive the raw transcript, never an empty prompt (which makes
+        # the model invent a summary from nothing).
+        from meetingbot import summarize
+
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(recorder.refine, "refine_transcript", lambda *a, **k: "   ")
+        seen: dict[str, str] = {}
+
+        def fake_summarize(transcript: str, **k: object) -> str:
+            seen["transcript"] = transcript
+            return "## Summary\n- ok"
+
+        monkeypatch.setattr(summarize, "summarize_meeting", fake_summarize)
+        recorder.summarize_session(fake_session(isolated))
+        assert seen["transcript"].strip(), "must not summarize an empty transcript"
+        assert "hello team" in seen["transcript"].lower()  # fell back to the raw text
+
+    def test_analytics_uses_raw_segments_not_refined(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Even if refinement empties the transcript, talk-time stats come from raw.
+        monkeypatch.setattr(recorder.refine, "refine_transcript", lambda *a, **k: "")
+        session = fake_session(isolated)
+        note_path, _ = recorder.finalize_session(session)
+        body = note_path.read_text()
+        assert "## Meeting stats" in body
+        assert "Total spoken:" in body  # derived from the raw segments, not the refined text
+
+    def test_guard_does_not_trigger_cloud_refine(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The "was anything said" guard reads the raw transcript; refine runs once,
+        # only to produce the note/summary content (never for the emptiness check).
+        from meetingbot import summarize
+
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(summarize, "summarize_meeting", lambda *a, **k: "## Summary\n- ok")
+        calls: list[object] = []
+
+        def counting_refine(*a: object, **k: object) -> str:
+            calls.append(k.get("tier"))
+            return "content"
+
+        monkeypatch.setattr(recorder.refine, "refine_transcript", counting_refine)
+        recorder.summarize_session(fake_session(isolated))
+        assert len(calls) == 1
+
+
 class TestRecoverSalvage:
     def test_rebuilds_manifest_from_orphaned_wavs(self, isolated: Path) -> None:
         from tests.conftest import tone, write_wav
@@ -141,6 +220,25 @@ class TestEnsureMeta:
         assert meta["duration_s"] == 42
         assert meta["source"] == "native-app"
         assert meta["started_at"].startswith("2026-06-13T")
+
+    def test_salvages_empty_manifest_from_orphaned_wavs(self, isolated: Path) -> None:
+        # The app's stop path (`mbot process`) funnels through ensure_meta. A meeting
+        # shorter than one 30s chunk leaves WAVs on disk with an empty manifest; without
+        # salvage here the pipeline sees no audio and the recording is lost.
+        from tests.conftest import tone, write_wav
+
+        session = config.SESSIONS_DIR / "20260613-120000-meeting"
+        session.mkdir(parents=True)
+        (session / "session.json").write_text(json.dumps({"started_at": "2026-06-13T12:00:00Z"}))
+        (session / "manifest.jsonl").write_text("")  # empty: stopped before first chunk closed
+        write_wav(session / "mic-0001.wav", tone(seconds=2.0))
+        write_wav(session / "sys-0001.wav", tone(seconds=2.0))
+
+        meta = recorder.ensure_meta(session)
+
+        entries = (session / "manifest.jsonl").read_text().splitlines()
+        assert len(entries) == 2, "manifest should be rebuilt from the orphaned WAVs"
+        assert meta["duration_s"] == 2, "duration should derive from the salvaged chunks"
 
     def test_applies_title_and_preserves_existing(self, isolated: Path) -> None:
         session = config.SESSIONS_DIR / "20260613-110000-meeting"

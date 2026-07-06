@@ -14,6 +14,14 @@
 > benchmarked (`make models`); live capture verified on real hardware
 > (ScreenCaptureKit → Whisper round-trip of spoken audio).
 
+> **Eloquent-style refinement (2026-06-21):** the transcript now goes through a
+> two-tier cleanup before the note/summary — an always-on, deterministic on-device
+> pass (strip fillers/stutters/false starts, fix punctuation; `meetingbot/refine.py`,
+> `MBOT_REFINE=local` default) and an optional NIM cloud polish (`cloud`). The raw
+> `transcript.jsonl` is preserved (analytics stays on it). Discrete AI text tools —
+> Key points / Formal / Short / Long — ship as `mbot transform` (`meetingbot/transform.py`),
+> with `mbot refine` to preview the cleaned transcript. Mirrors Google AI Edge Eloquent.
+
 A Granola-style meeting notetaker that runs entirely on this laptop. No bot joins your
 calls — it listens to the meeting audio already playing on your Mac, transcribes it
 locally, and uses a free cloud LLM (NVIDIA NIM) only for the final summarization step.

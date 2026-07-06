@@ -189,6 +189,39 @@ def auth_google() -> None:
     typer.secho("✓ Google authorized — google_docs export is ready.", fg="green", bold=True)
 
 
+@app.command(name="set-key")
+def set_key(
+    key: str = typer.Argument(
+        None, help='Your NVIDIA NIM API key (nvapi-…). Omit to be prompted; pass "" to clear.'
+    ),
+) -> None:
+    """Save your own NVIDIA NIM API key for summaries + Ask (bring-your-own-key).
+
+    Get a free key at https://build.nvidia.com. Stored locally in
+    ~/.config/meetingbot/.env — the same key the macOS app reads, never sent anywhere
+    but NVIDIA when you summarize.
+    """
+    if key is None:
+        key = typer.prompt("NVIDIA NIM API key (nvapi-…)", hide_input=True)
+    key = key.strip()
+    env_file = config.CONFIG_DIR / ".env"
+    config.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    # Upsert NVIDIA_API_KEY, preserving any other lines (mirrors the macOS Settings pane).
+    lines = [
+        ln
+        for ln in (env_file.read_text().splitlines() if env_file.exists() else [])
+        if not ln.startswith("NVIDIA_API_KEY=")
+    ]
+    if key:
+        lines.append(f"NVIDIA_API_KEY={key}")
+    env_file.write_text("\n".join(lines) + ("\n" if lines else ""))
+    if key:
+        masked = f"{key[:6]}…{key[-4:]}" if len(key) > 12 else "set"
+        typer.secho(f"✓ key saved ({masked}) → {env_file}", fg="green", bold=True)
+    else:
+        typer.secho("✓ key cleared.", fg="yellow")
+
+
 @app.command()
 def process(
     session: str = typer.Argument(..., help="Session directory to process (from native capture)"),
@@ -238,6 +271,42 @@ def transcribe_cmd(
     t.transcribe_session(path)
     turns = t.merge_turns(t.load_segments(path))
     typer.secho(f"✓ {len(turns)} speaker turns in {path / 'transcript.jsonl'}", fg="green")
+
+
+@app.command(name="refine")
+def refine_cmd(
+    session: str = typer.Argument(None, help="Session name/path (default: latest)"),
+    tier: str = typer.Option(
+        None, "--tier", help="off | local | cloud (default: MBOT_REFINE, i.e. local)"
+    ),
+) -> None:
+    """Preview the Eloquent-style refined transcript (fillers, stutters, and false
+    starts cleaned up). The note already embeds this; use --tier off for verbatim."""
+    from . import refine as refine_mod
+
+    path = _resolve_session(session)
+    typer.echo(refine_mod.refine_transcript(path, tier=tier))
+
+
+@app.command(name="transform")
+def transform_cmd(
+    kind: str = typer.Argument(..., help="key_points | formal | short | long"),
+    session: str = typer.Argument(None, help="Session name/path (default: latest)"),
+) -> None:
+    """Reshape a meeting's transcript with an AI text tool (Eloquent-style)."""
+    from . import refine as refine_mod
+    from . import transform as transform_mod
+
+    path = _resolve_session(session)
+    # Feed the refined transcript; never trigger a billable cloud refine just to
+    # prep input for the (already cloud) transform — downgrade "cloud" to local.
+    text = recorder.refined_transcript_markdown(path, tier=refine_mod.noncloud_tier())
+    try:
+        out = transform_mod.transform(text, kind)
+    except (ValueError, summarize.MissingAPIKeyError) as e:
+        typer.secho(str(e), fg="red")
+        raise typer.Exit(1) from e
+    typer.echo(out)
 
 
 @app.command()

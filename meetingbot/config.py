@@ -36,12 +36,25 @@ WHISPER_MODEL = os.environ.get("MBOT_WHISPER_MODEL", "mlx-community/whisper-larg
 # Comma/space separated, e.g. "Postgres, Kubernetes, OAuth".
 VOCAB = os.environ.get("MBOT_VOCAB", "").strip()
 
+# Eloquent-style transcript refinement tier, applied to the note's transcript and
+# the summarizer's input (the raw transcript.jsonl is always preserved verbatim):
+#   off   — raw Whisper transcript, no cleanup (legacy behavior)
+#   local — deterministic on-device cleanup (strip fillers, collapse false starts
+#           and repetitions, fix punctuation/capitalization). $0, offline, default.
+#   cloud — local cleanup THEN an NIM polish pass; falls back to local if the key
+#           is missing or the request fails. Opt-in (spends credits per meeting).
+REFINE = os.environ.get("MBOT_REFINE", "local").strip().lower()
+
 NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
 NIM_BASE_URL = os.environ.get("MBOT_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_MODEL = os.environ.get("MBOT_NIM_MODEL", "openai/gpt-oss-120b")
 # Reasoning effort for reasoning models (gpt-oss). "low" is ~40% faster and
 # cheaper than the default for note-taking with equal quality; "none" disables.
 NIM_REASONING = os.environ.get("MBOT_NIM_REASONING", "low").strip().lower()
+# Per-request timeout (seconds) for NIM calls. The OpenAI SDK defaults to 600s, which
+# lets a slow/unresponsive API hang the app's Stop→"Processing…" for up to 10 minutes;
+# bound it so summarization fails fast (and the note falls back to transcript-only).
+NIM_TIMEOUT = float(os.environ.get("MBOT_NIM_TIMEOUT", "90"))
 
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 PROMPT_TEMPLATE = PROMPTS_DIR / "meeting_summary.md"  # default / general

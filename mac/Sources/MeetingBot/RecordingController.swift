@@ -3,6 +3,7 @@ import CaptureKit
 import Combine
 import CoreGraphics
 import Foundation
+import MeetingBotKit
 @preconcurrency import UserNotifications
 
 @MainActor
@@ -150,8 +151,14 @@ final class RecordingController: ObservableObject {
     }
   }
 
-  /// Hand the finished session to the Python pipeline for transcription + notes.
+  /// Hand the finished session to the transcription + notes pipeline. Runs the
+  /// in-process native pipeline when opted in (the App Store path), else the Python
+  /// sidecar (the current notarized-download default).
   private func process(_ sessionURL: URL) async {
+    if Paths.useNativePipeline {
+      await processNatively(sessionURL)
+      return
+    }
     guard let mbot = Paths.mbotExecutable() else {
       fail("mbot pipeline not found — run scripts/install-macos.sh or set MBOT_BIN")
       return
@@ -193,6 +200,40 @@ final class RecordingController: ObservableObject {
     }
     // The pipeline prints the note path on its last non-empty line.
     return output.split(separator: "\n").map(String.init).last { !$0.isEmpty }
+  }
+
+  /// In-process native pipeline (MeetingBotKit) — no Python sidecar, no external
+  /// process. The same code path the iOS app uses; the App Store build will make this
+  /// the only path. Summary is best-effort inside the pipeline, so a note always saves.
+  private func processNatively(_ sessionURL: URL) async {
+    // Request Speech authorization before touching SFSpeechRecognizer. Required: the
+    // usage-description prompt gates on-device transcription, and accessing Speech
+    // without it (and without NSSpeechRecognitionUsageDescription in Info.plist) trips
+    // macOS TCC. Denied → chunks transcribe to "" and the note is transcript-empty.
+    _ = await AppleSpeechASR.requestAuthorization()
+    let llm: LLMProvider? = Paths.nvidiaKey().map { NIMProvider(apiKey: $0) }
+    let pipeline = MeetingPipeline(asr: AppleSpeechASR(), llm: llm, refine: .local)
+    do {
+      let note = try await pipeline.process(sessionDir: sessionURL, title: pendingTitle)
+      let path = try Self.writeNote(note)
+      lastNotePath = path
+      state = .idle
+      NSWorkspace.shared.open(URL(fileURLWithPath: path))
+      notify("Note ready", URL(fileURLWithPath: path).lastPathComponent)
+    } catch {
+      fail("processing failed: \(error.localizedDescription)")
+    }
+  }
+
+  /// Write a finished note as Markdown into the notes directory, matching the layout
+  /// NotesStore reads. Filename/slug come from the shared MeetingBotKit helper so the
+  /// mac, iOS, and Python front-ends all name the same meeting identically.
+  private static func writeNote(_ note: MeetingBotKit.MeetingNote) throws -> String {
+    let dir = Paths.notesDirectory
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let url = dir.appendingPathComponent(note.fileName)
+    try note.markdown.write(to: url, atomically: true, encoding: .utf8)
+    return url.path
   }
 
   // MARK: - Helpers

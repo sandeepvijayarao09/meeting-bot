@@ -15,3 +15,8 @@ build/
 *.spec
 .DS_Store
 .hypothesis/
+.coverage
+coverage.xml
+# Generated iOS Xcode project (source of truth is ios/MB/project.yml) + build output
+ios/MB/MB.xcodeproj/
+ios/MB/.build/

@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-from . import analytics, capture, config, exporters, notes, summarize, transcribe
+from . import analytics, capture, config, exporters, notes, refine, summarize, transcribe
 
 log = logging.getLogger(__name__)
 
@@ -85,6 +85,15 @@ def ensure_meta(session_dir: Path, title: str | None = None) -> dict[str, Any]:
     implied by the manifest, so the rest of the pipeline is source-agnostic.
     """
     session_dir = Path(session_dir)
+    # Salvage orphaned WAV chunks before anything reads the manifest. The native
+    # recorder registers a chunk in the manifest only when it closes, so a meeting
+    # shorter than one chunk — or one interrupted before a boundary — leaves WAVs on
+    # disk with an empty/missing manifest. Without this, `process` (the app's stop
+    # path) finds no audio and fails with "no transcript", silently losing a real
+    # recording. Rebuilding here fixes both `process` and `recover` in one place.
+    manifest = session_dir / "manifest.jsonl"
+    if (not manifest.exists() or manifest.stat().st_size == 0) and any(session_dir.glob("*.wav")):
+        _rebuild_manifest(session_dir)
     meta_path = session_dir / "meta.json"
     if meta_path.exists():
         meta = read_meta(session_dir)
@@ -119,6 +128,15 @@ def ensure_meta(session_dir: Path, title: str | None = None) -> dict[str, Any]:
 def transcript_markdown(session_dir: Path) -> str:
     turns = transcribe.merge_turns(transcribe.load_segments(session_dir))
     return transcribe.format_transcript(turns)
+
+
+def refined_transcript_markdown(session_dir: Path, tier: str | None = None) -> str:
+    """Eloquent-style refined transcript used for the note body and the summarizer
+    input. Honors ``config.REFINE`` by default; the raw transcript.jsonl is never
+    touched (it stays the verbatim source of truth, recoverable via
+    `mbot refine --tier off`). Talk-time analytics deliberately stays on the raw
+    segments, so it reflects what was actually said."""
+    return refine.refine_transcript(session_dir, tier=tier)
 
 
 def maybe_diarize(session_dir: Path) -> None:
@@ -179,11 +197,18 @@ def summarize_session(session_dir: Path, template: str | None = None) -> Path:
     session_dir = Path(session_dir)
     maybe_diarize(session_dir)
     meta = read_meta(session_dir)
-    transcript_md = transcript_markdown(session_dir)
-    if not transcript_md:
+    if not transcript_markdown(session_dir):  # was anything said? (raw, no cloud cost)
         raise RuntimeError(
             f"no transcript in {session_dir} — run `mbot transcribe {session_dir.name}` first"
         )
+    # Refined transcript (Eloquent-style cleanup) feeds both the note body and the
+    # summarizer; cleaner input yields cleaner notes. Raw transcript.jsonl is kept.
+    transcript_md = refined_transcript_markdown(session_dir)
+    if not transcript_md.strip():
+        # An all-filler recording refines to nothing even though the raw guard above
+        # passed; summarize the raw transcript rather than sending an empty prompt to
+        # the model (which would hallucinate a summary from nothing).
+        transcript_md = transcript_markdown(session_dir)
     summary = build_summary(session_dir, meta, transcript_md, template=template)
     if not meta.get("title"):
         # No calendar/extension title: name the note from its content, like a
@@ -199,7 +224,9 @@ def export_session(session_dir: Path, targets: list[str]) -> list[exporters.Expo
     """Re-run specific export targets for an already-summarized session."""
     session_dir = Path(session_dir)
     meta = read_meta(session_dir)
-    transcript_md = transcript_markdown(session_dir)
+    # Match the note's refined transcript, but never re-bill the cloud tier on a
+    # re-export — downgrade "cloud" to the deterministic local cleanup.
+    transcript_md = refined_transcript_markdown(session_dir, tier=refine.noncloud_tier())
     if not transcript_md:
         raise RuntimeError(f"no transcript in {session_dir}")
     note_file = config.NOTES_DIR / Path(meta["note_path"]).name if meta.get("note_path") else None
@@ -242,7 +269,9 @@ def finalize_session(
         return summarize_session(session_dir, template=template), True
     maybe_diarize(session_dir)
     meta = read_meta(session_dir)
-    transcript_md = transcript_markdown(session_dir)
+    # No key: refinement falls back to local (cloud needs a key), so the note's
+    # transcript is still cleaned even without summarization.
+    transcript_md = refined_transcript_markdown(session_dir)
     meta["summarized"] = False
     note_path = _write_and_export(session_dir, meta, notes.PLACEHOLDER_SUMMARY, transcript_md)
     return note_path, False
@@ -329,10 +358,7 @@ def recover(template: str | None = None) -> list[Path]:
     the note paths produced. Safe to call on launch; a no-op when nothing pending."""
     notes_made: list[Path] = []
     for session in unfinished_sessions():
-        manifest = session / "manifest.jsonl"
-        if not manifest.exists() or manifest.stat().st_size == 0:
-            _rebuild_manifest(session)  # salvage orphaned WAVs from a hard crash
-        ensure_meta(session)  # after rebuild, so duration is derived from the chunks
+        ensure_meta(session)  # synthesizes meta + salvages orphaned WAVs (empty/missing manifest)
         transcribe.transcribe_session(session)
         if not transcript_markdown(session):
             # No speech captured: mark it so we don't retry on every launch.

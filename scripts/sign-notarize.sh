@@ -25,7 +25,8 @@ DEVELOPER_ID="$DEVELOPER_ID" EMBED_SIDECAR="${EMBED_SIDECAR:-1}" bash "$PROJECT/
 
 echo "▸ Building DMG…"
 bash "$PROJECT/scripts/build-dmg.sh"
-DMG="$(ls -t "$PROJECT"/dist/MeetingBot-*.dmg | head -1)"
+# Must match build-dmg.sh's output name (dist/${APP_NAME}-<version>-<build>.dmg, default MB).
+DMG="$(ls -t "$PROJECT"/dist/"${APP_NAME:-MB}"-*.dmg | head -1)"
 
 echo "▸ Submitting $DMG to Apple notary service (this can take a few minutes)…"
 xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait

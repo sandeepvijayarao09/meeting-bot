@@ -55,6 +55,37 @@ enum Paths {
     return nil
   }
 
+  /// Opt-in: run the in-process native pipeline (MeetingBotKit) instead of the Python
+  /// sidecar — the migration path toward a sandboxed Mac App Store build. Default off,
+  /// so the shipping Python path is unchanged until the native path is validated.
+  static var useNativePipeline: Bool {
+    if let env = ProcessInfo.processInfo.environment["MBOT_NATIVE_PIPELINE"], !env.isEmpty {
+      return env == "1" || env.lowercased() == "true"
+    }
+    return UserDefaults.standard.bool(forKey: "useNativePipeline")
+  }
+
+  /// The user's NVIDIA NIM key from ~/.config/meetingbot/.env (written by Settings),
+  /// for the native pipeline's cloud summary. Phase C moves this into the container.
+  static func nvidiaKey() -> String? {
+    let envFile = FileManager.default.homeDirectoryForCurrentUser
+      .appendingPathComponent(".config/meetingbot/.env")
+    guard let text = try? String(contentsOf: envFile, encoding: .utf8) else { return nil }
+    let prefix = "NVIDIA_API_KEY="
+    for line in text.components(separatedBy: "\n") where line.hasPrefix(prefix) {
+      var value = String(line.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+      // Strip surrounding quotes, matching how python-dotenv reads the same file, so a
+      // hand-edited `NVIDIA_API_KEY="nvapi-…"` doesn't send quotes to NIM (401).
+      if value.count >= 2, let first = value.first, first == value.last,
+        first == "\"" || first == "'"
+      {
+        value = String(value.dropFirst().dropLast())
+      }
+      return value.isEmpty ? nil : value
+    }
+    return nil
+  }
+
   /// Best-effort project root when running from a dev build (…/mac/.build/…).
   private static func projectRoot() -> URL? {
     var url = URL(fileURLWithPath: Bundle.main.bundlePath)

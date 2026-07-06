@@ -25,6 +25,33 @@ class TestStop:
         assert "nothing is recording" in result.output
 
 
+class TestSetKey:
+    def test_saves_upserts_and_clears(
+        self, isolated: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cfg = isolated / "config"
+        monkeypatch.setattr(config, "CONFIG_DIR", cfg)  # never touch the real ~/.config key
+        env_file = cfg / ".env"
+
+        result = runner.invoke(app, ["set-key", "nvapi-abcdef123456"])
+        assert result.exit_code == 0
+        assert "NVIDIA_API_KEY=nvapi-abcdef123456" in env_file.read_text()
+        assert "nvapi-abcdef123456" not in result.output  # masked, never echoed in full
+
+        # Upsert: replace the key without duplicating, preserving unrelated lines.
+        env_file.write_text("OTHER=1\nNVIDIA_API_KEY=old\n")
+        runner.invoke(app, ["set-key", "nvapi-newkey987654"])
+        text = env_file.read_text()
+        assert "OTHER=1" in text and text.count("NVIDIA_API_KEY=") == 1
+        assert "nvapi-newkey987654" in text
+
+        # Clear with an empty value; other lines survive.
+        result = runner.invoke(app, ["set-key", ""])
+        assert result.exit_code == 0
+        assert "NVIDIA_API_KEY=" not in env_file.read_text()
+        assert "OTHER=1" in env_file.read_text()
+
+
 class TestList:
     def test_empty(self, isolated: Path) -> None:
         result = runner.invoke(app, ["list"])
@@ -89,6 +116,50 @@ class TestExport:
         result = runner.invoke(app, ["export"])
         assert result.exit_code == 1
         assert "no sessions yet" in result.output
+
+
+class TestRefineCmd:
+    def test_local_refine_cleans(self, isolated: Path) -> None:
+        fake_session(isolated)  # transcript: "hello team" / "hi there"
+        result = runner.invoke(app, ["refine"])
+        assert result.exit_code == 0
+        assert "Hello team" in result.output  # sentence-start capitalized by refine
+
+    def test_off_tier_is_verbatim(self, isolated: Path) -> None:
+        fake_session(isolated)
+        result = runner.invoke(app, ["refine", "--tier", "off"])
+        assert result.exit_code == 0
+        assert "hello team" in result.output  # raw, unrefined
+
+    def test_no_sessions(self, isolated: Path) -> None:
+        result = runner.invoke(app, ["refine"])
+        assert result.exit_code == 1
+        assert "no sessions yet" in result.output
+
+
+class TestTransformCmd:
+    def test_no_key_fails_cleanly(self, isolated: Path) -> None:
+        fake_session(isolated)
+        result = runner.invoke(app, ["transform", "key_points"])
+        assert result.exit_code == 1
+        assert "NVIDIA_API_KEY" in result.output
+
+    def test_unknown_kind_fails(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        fake_session(isolated)
+        result = runner.invoke(app, ["transform", "bogus"])
+        assert result.exit_code == 1
+        assert "unknown transform" in result.output
+
+    def test_runs_with_mocked_nim(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from meetingbot import summarize
+
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(summarize, "complete", lambda *a, **k: "- point one")
+        fake_session(isolated)
+        result = runner.invoke(app, ["transform", "key_points"])
+        assert result.exit_code == 0
+        assert "point one" in result.output
 
 
 class TestAuthGoogle:

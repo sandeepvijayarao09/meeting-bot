@@ -4,9 +4,13 @@
 set -euo pipefail
 
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$PROJECT/dist/MeetingBot.app"
+# Must match build-app.sh, which builds dist/${APP_NAME}.app (default MB).
+APP_NAME="${APP_NAME:-MB}"
+APP="$PROJECT/dist/${APP_NAME}.app"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo 0.1.0)"
-DMG="$PROJECT/dist/MeetingBot-$VERSION.dmg"
+BUILD="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Contents/Info.plist" 2>/dev/null || echo 1)"
+# Include the build number so successive builds of the same version don't collide.
+DMG="$PROJECT/dist/${APP_NAME}-$VERSION-$BUILD.dmg"
 STAGE="$(mktemp -d)"
 
 [ -d "$APP" ] || { echo "✗ $APP not found — run scripts/build-app.sh first"; exit 1; }

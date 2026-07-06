@@ -7,6 +7,31 @@ All notable changes to this project are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Store-submission readiness**: privacy manifests (`PrivacyInfo.xcprivacy`) for the iOS
+  and macOS apps (no tracking, no data collection, required-reason APIs declared), an
+  App Store-compliant 1024² opaque app icon for iOS, export-compliance flag, plus
+  [PRIVACY.md](PRIVACY.md) (privacy policy) and [RELEASE.md](RELEASE.md) (per-store
+  submission checklist). Decisions: iOS → App Store; macOS → Developer ID + notarization
+  (the sidecar/ScreenCaptureKit architecture is incompatible with the Mac App Store
+  sandbox); Android/Play Store scoped as a future milestone ([android/README.md](android/README.md)).
+- **Industry-standard CI/test gate**: `make check` now also runs `swift test`, the iOS
+  build + unit tests on a simulator, and pytest with a ≥80% coverage floor; CI runs the
+  same gate verbatim.
+- **iOS app** (`ios/MB`, Milestone 1): a mic-based, local-first notetaker for in-person
+  meetings — on-device transcription (Apple Speech), Eloquent-style local refine, notes,
+  and an optional NVIDIA NIM cloud summary. Built on a new multiplatform Swift package:
+  `CaptureKit` is now iOS-ready (system-audio capture is macOS-only and `#if`-guarded) and
+  a dependency-free **`MeetingBotKit`** holds the shared pipeline — `Refiner` (a Swift port
+  of `refine.py` Tier-1, unit-tested for parity), transcript merge/format, and the
+  `ASRProvider`/`LLMProvider` protocols. On-device **Gemma 4 E4B** (LiteRT-LM) lands in M2.
+- **Transcript refinement** (Eloquent-style, `meetingbot/refine.py`): on-device cleanup
+  of filler words, stutters, and false starts — always-on, deterministic, `$0`
+  (`MBOT_REFINE=local`, the default) — with an optional NIM cloud polish (`cloud`).
+  Notes and summaries now use the cleaned transcript; the raw `transcript.jsonl` is
+  preserved verbatim (talk-time analytics still reflects what was actually said).
+- **AI text tools** (`meetingbot/transform.py`): `mbot transform key_points|formal|short|long`
+  reshapes a meeting's transcript on demand, plus `mbot refine` to preview the cleaned
+  transcript (`--tier off` for verbatim).
 - MIT license, packaging metadata, GitHub Actions CI, and contribution/security docs.
 
 ## [0.1.0] - 2026-06-13

@@ -18,10 +18,11 @@ needs no meeting-platform integration.
 - 🗣️ **Speaker attribution** — your mic is "Me", system audio is "Them" (+ optional Speaker A/B/C diarization).
 - 📝 **Structured notes** — summary, decisions, action items, full transcript per meeting.
 - 🧩 **Templates** — general, standup, 1:1, interview, sales call (Granola-style "Recipes").
+- ✨ **Clean transcripts & AI text tools** — Eloquent-style on-device cleanup (strips "um"/stutters/false starts) plus on-demand Key points / Formal / Short / Long rewrites.
 - 📊 **Talk-time analytics** — Me/Them ratio, words, turns, longest monologue per note.
 - 📤 **Exports** — Markdown, Apple Notes (iCloud or on-device), Google Docs.
 - 🔎 **Search & Ask** — full-text across every meeting, plus AI Q&A over your meetings.
-- 💻 **Two front-ends** — a native SwiftUI app and a Chrome extension.
+- 💻 **Three front-ends** — a native macOS SwiftUI app, a Chrome extension, and an iOS app (mic-based, on-device; see [ios/README.md](ios/README.md)).
 - 💸 **$0** — local Whisper + NVIDIA NIM's free tier (~500 meetings on signup credits).
 
 > **Why local-first?** Cloud notetakers upload your meeting audio to their servers.
@@ -71,6 +72,8 @@ uv run mbot status                      # is something recording?
 uv run mbot stop                        # stop a recording from another shell
 uv run mbot summarize                   # (re)summarize the latest session
 uv run mbot transcribe                  # re-run local transcription for a session
+uv run mbot refine                      # preview the cleaned-up transcript (--tier off = verbatim)
+uv run mbot transform key_points        # AI text tools: key_points | formal | short | long
 ```
 
 Menu bar app instead of the terminal:
@@ -171,6 +174,7 @@ Environment variables (in `~/.config/meetingbot/.env` or a repo-local `.env`):
 | `MBOT_NIM_REASONING` | `low` | gpt-oss reasoning effort: `low`/`medium`/`high`/`none` (low ≈ 40% faster, equal quality for notes) |
 | `MBOT_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | local ASR model (≈1.6 GB, downloads on first use; use `mlx-community/whisper-small` on low disk/RAM) |
 | `MBOT_VOCAB` | — | domain words to spell right (product names, jargon, people), e.g. `Postgres, Kubernetes, OAuth` |
+| `MBOT_REFINE` | `local` | transcript cleanup tier: `off` (raw) / `local` (on-device, $0) / `cloud` (local + NIM polish, opt-in) |
 | `MBOT_NOTES_DIR` | `./notes` | where Markdown notes go |
 | `MBOT_DATA_DIR` | `~/.local/share/meetingbot` | sessions, search index, usage log |
 | `MBOT_CHUNK_SECONDS` | `30` | audio chunk size for live transcription |
@@ -186,9 +190,14 @@ The summary prompt is `prompts/meeting_summary.md` — edit it to taste.
    AVAudioEngine, writing 16 kHz mono WAV chunks + a manifest.
 2. `meetingbot` (Python) transcribes each chunk with mlx-whisper *while you're still
    in the meeting*, merging both streams by timestamp into Me/Them turns.
-3. When you stop, one request to NVIDIA NIM turns the transcript (plus your rough
-   notes) into polished meeting notes. At 1–2 requests per meeting, the 1,000 free
-   credits cover ~500+ meetings; NIM usage is logged to `~/.local/share/meetingbot/usage.log`.
+3. When you stop, the transcript is **refined** (Eloquent-style): an on-device pass
+   strips fillers, stutters, and false starts and fixes punctuation — all locally and
+   for free. The raw transcript is kept; with `MBOT_REFINE=cloud` a NIM pass polishes
+   it further.
+4. One request to NVIDIA NIM turns the cleaned transcript (plus your rough notes) into
+   polished meeting notes. At 1–2 requests per meeting, the 1,000 free credits cover
+   ~500+ meetings; NIM usage is logged to `~/.local/share/meetingbot/usage.log`. You
+   can also reshape any meeting on demand with `mbot transform key_points|formal|short|long`.
 
 See `PLAN.md` for the full build plan and roadmap (auto-detection of meetings,
 calendar titles, ask-my-meetings Q&A…).
@@ -204,7 +213,7 @@ make check
 
 | Layer | Tooling |
 |---|---|
-| Python (`meetingbot/`, `tests/`) | ruff (lint+format), mypy `--strict`, pytest (63 tests) |
+| Python (`meetingbot/`, `tests/`) | ruff (lint+format), mypy `--strict`, pytest (195 tests) |
 | Swift (`audiocap/`) | swift-format (Apple style), no force-unwraps, modular sources |
 | Extension (`chrome-extension/`) | `tsc --noEmit` with `checkJs` + JSDoc types + chrome-types |
 
