@@ -247,8 +247,9 @@ final class RecordingController: ObservableObject {
 
   private func startTimer() {
     timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+      guard let self else { return }
       Task { @MainActor in
-        guard let self, let startedAt = self.startedAt else { return }
+        guard let startedAt = self.startedAt else { return }
         self.elapsed = Date().timeIntervalSince(startedAt)
       }
     }

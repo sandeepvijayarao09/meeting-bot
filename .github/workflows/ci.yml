@@ -14,10 +14,18 @@ jobs:
   check:
     # Apple Silicon runner: needed for Swift, ScreenCaptureKit, mlx wheels, and the
     # iOS simulator. Runs the exact same gate as `make check`.
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
+      # Pin the newest stable Xcode on the runner. The image's default Xcode lags
+      # and can miss current SwiftUI APIs (e.g. openSettings) / concurrency
+      # behavior, so select latest-stable to match the development toolchain.
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
