@@ -19,8 +19,8 @@ network and cannot exercise the GUI/device**. Before shipping, on real hardware:
 3. **A reachable NIM key** → confirm a real cloud summary returns (the pipeline now bounds
    the call at 90s and falls back to transcript-only on failure, but verify the happy path).
 
-This session found runtime bugs that tests missed (lost short recordings, a bogus
-"user stopped the stream" error, a 10-minute NIM hang) — so treat device testing as a
+Runtime bugs have slipped past the automated tests before (lost short recordings, a
+spurious "user stopped the stream" error, a 10-minute NIM hang), so device testing is a
 hard gate, not a formality.
 
 ## Prerequisites you must provide (gated on accounts/credentials)
@@ -103,11 +103,14 @@ Builds for device-arch Release + unit tests pass (`make ios-test`).
 
 ## 3. macOS → notarized download (ship now) + Mac App Store (next)
 
-**Prepared + validated this session:** `scripts/build-app.sh` version-stamps (git commit
+**Prepared:** `scripts/build-app.sh` version-stamps (git commit
 count, override with `MB_VERSION`/`MB_BUILD`), embeds the PyInstaller `mbot` sidecar, and
 signs **inside-out** (every nested Mach-O incl. framework binaries) so notarization won't
 reject unsigned payloads — verified end-to-end ad-hoc (`codesign --verify --deep --strict`
 passes, embedded `mbot` runs). Hardened-runtime entitlements + privacy manifest bundled.
+The app is also a standard, archivable Xcode project (`mac/project.yml` → `make mac-project`,
+mirroring iOS) for IDE work and a Developer ID `Product ▸ Archive`; `build-app.sh` remains
+the release path because it bundles + signs the `mbot` sidecar the DMG needs.
 
 **Ship a notarized download (recommended first release):**
 ```bash
@@ -120,8 +123,8 @@ sidecar), but the DMG compresses to **~312 MB** for download. Once notarized, it
 without the Gatekeeper right-click dance. The native migration (below) removes the sidecar
 and shrinks this dramatically.
 
-**Mac App Store (native migration — now a real path, not out of scope):** the app store
-requires the App Sandbox, which forbids the Python subprocess. The fix is underway: the
+**Mac App Store (native migration):** the app store
+requires the App Sandbox, which forbids the Python subprocess. The migration path: the
 macOS app can run the **native in-process `MeetingBotKit` pipeline** (the same one iOS uses)
 behind `MBOT_NATIVE_PIPELINE=1` (Phase A done — flag-gated, builds/tests green). Remaining
 before MAS submission: validate the native path on a real Mac, make it the default, remove

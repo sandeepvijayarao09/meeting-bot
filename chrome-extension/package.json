@@ -1,6 +1,6 @@
 {
   "name": "meeting-bot-extension",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Type-checking setup for the Meeting Bot Chrome extension (no build step; the JS files load unpacked as-is).",
   "scripts": {

@@ -13,7 +13,7 @@ bash scripts/build-dmg.sh      # dist/MB-<version>-<build>.dmg (drag-to-Applicat
 ```
 
 For a build other people can run without Gatekeeper warnings, you need an Apple
-Developer account and your own credentials (the one step I can't do for you):
+Developer account and your own credentials:
 
 ```bash
 DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" \
@@ -29,6 +29,20 @@ bash scripts/sign-notarize.sh
 | `scripts/build-sidecar.sh` | freezes the `mbot` Python pipeline into a standalone binary via PyInstaller, so users need no Python/venv |
 | `scripts/build-dmg.sh` | packages the app into a drag-to-install DMG |
 | `scripts/sign-notarize.sh` | full release: Developer-ID sign → notarize → staple |
+
+## Xcode project (`mac/project.yml`)
+
+`make mac-project` runs xcodegen to generate `mac/MB.xcodeproj` from the checked-in
+[mac/project.yml](mac/project.yml) spec — the same setup the iOS app uses, so the Mac
+app opens in Xcode and archives through the standard workflow. `make mac-build` compiles
+it unsigned to verify the app target. The generated project is gitignored; `project.yml`
+is the source of truth.
+
+The Xcode project builds the app **without** the Python sidecar. The shippable notarized
+DMG still comes from `scripts/build-app.sh` (via `make app`), because that script embeds
+and inside-out-signs the `mbot` sidecar the DMG needs. So: use the Xcode project for
+development and a Developer ID `Product ▸ Archive`; use `build-app.sh` for the
+sidecar-bundled release DMG.
 
 ## How the app finds the transcription pipeline
 
@@ -69,9 +83,9 @@ single-binary app, the path is to replace the Python transcription with
 [whisper.cpp](https://github.com/ggerganov/whisper.cpp) called directly from Swift —
 then `CaptureKit` + a Whisper Swift wrapper make the whole product native, and the
 Python pipeline becomes optional (CLI/extension only). The summary step can call
-NVIDIA NIM directly over HTTPS from Swift. This wasn't done here because you chose to
-keep the Python pipeline, but the architecture (app → `mbot process`) is deliberately
-swappable: replace that one call site and the rest is unaffected.
+NVIDIA NIM directly over HTTPS from Swift. The current build keeps the Python pipeline,
+but the architecture (app → `mbot process`) is deliberately swappable: replace that one
+call site and the rest is unaffected.
 
 ## Permissions on first launch
 

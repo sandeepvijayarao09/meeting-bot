@@ -1,7 +1,8 @@
 # Meeting Bot — development tasks. `make check` runs exactly what CI runs.
 
 .PHONY: check lint type test swift-build swift-lint swift-test \
-        ios-project ios-build ios-test ext-check ext-test ext-package app models clean
+        mac-project mac-build ios-project ios-build ios-test \
+        ext-check ext-test ext-package app models clean
 
 # Full quality gate. Order matters: swift-build runs before `test` so the
 # `mbot doctor` test finds the freshly built release audiocap binary.
@@ -60,7 +61,20 @@ ios-test: ios-project
 	cd ios/MB && xcodebuild -project MB.xcodeproj -scheme MB -sdk iphonesimulator \
 	  -destination "id=$$UDID" -derivedDataPath .build CODE_SIGNING_ALLOWED=NO test
 
-# Build the distributable MB.app bundle (macOS).
+# Generate the macOS Xcode project from mac/project.yml (needs `brew install xcodegen`).
+# This is the IDE/archive project; `make app` (below) is the notarized-release path.
+mac-project:
+	@command -v xcodegen >/dev/null || { echo "xcodegen not found — run: brew install xcodegen"; exit 1; }
+	cd mac && xcodegen generate
+
+# Compile the macOS app via the Xcode project (unsigned) to verify the app target.
+mac-build: mac-project
+	cd mac && xcodebuild -project MB.xcodeproj -scheme MB \
+	  -destination 'generic/platform=macOS' -derivedDataPath .build \
+	  CODE_SIGNING_ALLOWED=NO build
+
+# Build the distributable MB.app bundle (macOS). Uses SwiftPM + scripts/build-app.sh
+# so it can embed and inside-out-sign the Python `mbot` sidecar the DMG needs.
 app:
 	bash scripts/build-app.sh
 

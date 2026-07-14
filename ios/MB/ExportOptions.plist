@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  App Store export options for `xcodebuild -exportArchive` (see RELEASE.md §2).
+
+  Before your first upload:
+    1. Replace YOUR_TEAM_ID below with your Apple Developer Team ID
+       (Apple Developer → Membership → Team ID, a 10-char string).
+    2. In ios/MB/project.yml set DEVELOPMENT_TEAM and remove `CODE_SIGNING_ALLOWED: "NO"`
+       for archive builds, then re-run `xcodegen generate`.
+
+  `method` is `app-store-connect` for Xcode 15.3+. On older toolchains use `app-store`.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>YOUR_TEAM_ID</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>destination</key>
+	<string>export</string>
+	<key>stripSwiftSymbols</key>
+	<true/>
+</dict>
+</plist>

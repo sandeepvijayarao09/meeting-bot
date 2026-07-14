@@ -1,6 +1,6 @@
 [project]
 name = "meetingbot"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local-first AI meeting notetaker for macOS: on-device Whisper transcription, free NVIDIA NIM summaries, exports to Markdown / Apple Notes / Google Docs."
 readme = "README.md"
 requires-python = ">=3.12"

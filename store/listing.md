@@ -70,7 +70,7 @@ REQUIREMENTS
 
 1. Pay the one-time $5 developer fee at https://chrome.google.com/webstore/devconsole
    (sign in with the Google account you want to own the extension).
-2. "New item" → upload `dist/meeting-bot-extension-0.1.0.zip`.
+2. "New item" → upload `dist/meeting-bot-extension-1.0.0.zip`.
 3. Paste the copy above into the listing; upload `screenshot-1.png`.
 4. Fill the Privacy tab using the disclosures above + your hosted privacy policy URL.
 5. Set visibility (consider **Unlisted** — installable via link, no public listing —

@@ -1,0 +1,57 @@
+# Xcode project spec for the macOS app (MB.app), generated with `xcodegen generate`
+# (`make mac-project`). This mirrors ios/MB/project.yml so both apps are standard,
+# archivable Xcode projects driven from a checked-in spec — the generated
+# MB.xcodeproj is gitignored; this file is the source of truth.
+#
+# The app target compiles the SwiftUI sources in Sources/MeetingBot and links the
+# CaptureKit + MeetingBotKit library products from the local Swift package (the same
+# package the iOS app consumes). The hand-written Info.plist, entitlements, icon, and
+# privacy manifest under MeetingBot/ are reused verbatim.
+#
+# Note: `swift build` (the SwiftPM `MeetingBot` executable target) and
+# scripts/build-app.sh remain the release pipeline — build-app.sh embeds and
+# inside-out-signs the Python `mbot` sidecar, which the notarized DMG needs. This
+# Xcode project is the IDE/dev/archive project (no sidecar); use it to open the app
+# in Xcode and to `xcodebuild archive` a Developer ID build.
+name: MB
+options:
+  bundleIdPrefix: ai.meetingbot
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+packages:
+  # The shared multiplatform package lives here (Package.swift is alongside this file).
+  MeetingBot:
+    path: .
+
+targets:
+  MB:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/MeetingBot
+      - path: MeetingBot/AppIcon.icns
+        buildPhase: resources
+      - path: MeetingBot/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: MB
+        PRODUCT_BUNDLE_IDENTIFIER: ai.meetingbot.mb
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        # Reuse the existing hand-written plist + entitlements (paths are relative to
+        # this spec's directory, mac/).
+        INFOPLIST_FILE: MeetingBot/Info.plist
+        CODE_SIGN_ENTITLEMENTS: MeetingBot/MeetingBot.entitlements
+        SWIFT_VERSION: "5.9"
+        # Dev/CI builds are unsigned. For a notarized/archive build, set
+        # DEVELOPMENT_TEAM + a "Developer ID Application" identity in Xcode or CI
+        # (Signing & Capabilities), then Product ▸ Archive.
+        CODE_SIGNING_ALLOWED: "NO"
+    dependencies:
+      - package: MeetingBot
+        product: CaptureKit
+      - package: MeetingBot
+        product: MeetingBotKit

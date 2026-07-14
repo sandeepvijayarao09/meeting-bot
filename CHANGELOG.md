@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-08
+
+First public release. Marketing version bumped to 1.0.0 across all platforms
+(Python/CLI, macOS app, iOS app, Chrome extension).
+
 ### Added
 - **Store-submission readiness**: privacy manifests (`PrivacyInfo.xcprivacy`) for the iOS
   and macOS apps (no tracking, no data collection, required-reason APIs declared), an
@@ -50,5 +55,6 @@ All notable changes to this project are documented here. The format is based on
 - Quality gate (`make check`): ruff, mypy --strict, pytest, swift build + format,
   extension tsc.
 
-[Unreleased]: https://github.com/sandeepvijayarao09/meeting-bot/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sandeepvijayarao09/meeting-bot/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/sandeepvijayarao09/meeting-bot/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/sandeepvijayarao09/meeting-bot/releases/tag/v0.1.0
