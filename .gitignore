@@ -8,7 +8,6 @@ __pycache__/
 notes/
 mac/.build/
 chrome-extension/node_modules/
-chrome-extension/package-lock.json
 # Build artifacts (regenerable via scripts/). Source + store assets are tracked.
 dist/
 build/
