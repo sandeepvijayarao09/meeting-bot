@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **On-device LLM scaffold (Gemma 4 E4B via LiteRT-LM)** — an opt-in, fully-local
+  summary backend mirroring Google AI Edge Eloquent, selected by `MBOT_LLM=local`
+  (`cloud` remains the default; no model is bundled, so shipped behavior is unchanged).
+  The `LLMProvider` seam, `GemmaProvider`, the `GemmaModel` descriptor, and a
+  transcript-only fallback are in place and unit-tested; the on-device LiteRT-LM
+  inference is a device-side finish. See [docs/on-device-llm.md](docs/on-device-llm.md).
+
 ## [1.0.0] - 2026-07-08
 
 First public release. Marketing version bumped to 1.0.0 across all platforms

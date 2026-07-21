@@ -1,4 +1,5 @@
 import Foundation
+import MeetingBotKit
 
 /// Resolves where data lives and how to invoke the Python `mbot` pipeline.
 ///
@@ -63,6 +64,29 @@ enum Paths {
       return env == "1" || env.lowercased() == "true"
     }
     return UserDefaults.standard.bool(forKey: "useNativePipeline")
+  }
+
+  /// Which LLM backend the native pipeline uses for the summary. `MBOT_LLM` env, else
+  /// the `llmBackend` default, else `.cloud` (today's NIM behavior — unchanged). Set
+  /// `local` for fully-local, on-device Gemma (no network); `none` for no summary.
+  static var llmBackend: LLMBackend {
+    let raw =
+      ProcessInfo.processInfo.environment["MBOT_LLM"]
+      ?? UserDefaults.standard.string(forKey: "llmBackend")
+    switch raw?.lowercased() {
+    case "none": return .none
+    case "local", "gemma", "localgemma": return .localGemma
+    default: return .cloud
+    }
+  }
+
+  /// The on-disk LiteRT-LM Gemma model, if present (Application Support). `nil` until
+  /// the user downloads it; `GemmaProvider` then reports it unavailable and the
+  /// pipeline falls back to a transcript-only note.
+  static func gemmaModelURL() -> URL? {
+    FileManager.default
+      .urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+      .map { GemmaModel.url(appSupport: $0) }
   }
 
   /// The user's NVIDIA NIM key from ~/.config/meetingbot/.env (written by Settings),

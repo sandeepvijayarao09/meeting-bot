@@ -159,6 +159,31 @@ final class PipelineTests: XCTestCase {
     }
   }
 
+  func testGemmaProviderReportsUnavailableUntilWired() async {
+    let provider = GemmaProvider()  // no model installed
+    XCTAssertFalse(provider.isModelInstalled)
+    do {
+      _ = try await provider.complete(system: "s", user: "u", maxTokens: 64)
+      XCTFail("expected modelUnavailable")
+    } catch {
+      XCTAssertEqual(error as? LLMError, .modelUnavailable)
+    }
+  }
+
+  func testLocalGemmaBackendDegradesToTranscriptOnly() async throws {
+    let dir = try makeSession()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let asr = FakeASR(byFile: ["mic-0001.wav": "hello team", "mic-0002.wav": "we shipped it"])
+    // Fully-local backend selected but the model isn't installed yet: the meeting must
+    // still be saved as a transcript-only note, never blocked (same contract as a
+    // missing cloud key).
+    let note = try await MeetingPipeline(asr: asr, llm: GemmaProvider(), refine: .local)
+      .process(sessionDir: dir, title: "Local")
+    XCTAssertEqual(note.summaryMarkdown, "")
+    XCTAssertTrue(note.transcriptMarkdown.contains("Hello team"))
+    XCTAssertTrue(note.markdown.contains("Transcript only"))
+  }
+
   func testNoteFileNameAndSlug() {
     // Slug is deterministic; the date prefix is local-tz so assert on the slug suffix.
     let note = MeetingNote(

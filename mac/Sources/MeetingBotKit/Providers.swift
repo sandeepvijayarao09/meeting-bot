@@ -24,6 +24,9 @@ public enum LLMError: Error, Equatable {
   case badURL
   case badResponse
   case http(Int, String)
+  /// The on-device model (or its runtime) isn't available yet — callers fall back
+  /// to a transcript-only note rather than failing. Used by `GemmaProvider`.
+  case modelUnavailable
 }
 
 /// NVIDIA NIM (OpenAI-compatible) chat completions over URLSession — the Swift

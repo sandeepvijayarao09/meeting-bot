@@ -30,6 +30,7 @@ Fireflies, tl;dv) and what's next. Everything stays local-first.
 | **Semantic search** (embeddings) | most | Beat keyword FTS with a local embedding model. |
 | **Editable / shareable notes** | most | Edit summaries in the app; share links. |
 | **Integrations** (Slack / Notion / CRM) | Fireflies (widest) | Outbound webhooks; opt-in, keeps audio local. |
+| **On-device summaries** (Gemma 4 E4B / LiteRT-LM) | Eloquent | Fully-local, no-cloud summary. Scaffolded + opt-in (`MBOT_LLM=local`); on-device inference is a device-side finish — see [docs/on-device-llm.md](docs/on-device-llm.md). |
 | **Notarized distribution + auto-update** | all | Developer-ID notarize (scripts ready) + Sparkle. |
 
 ## Where we already win
