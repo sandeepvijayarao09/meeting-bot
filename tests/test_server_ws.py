@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from websockets.asyncio.client import connect
 from websockets.asyncio.server import serve
+from websockets.exceptions import InvalidStatus
 
 from meetingbot import recorder, server
 
@@ -96,5 +97,70 @@ class TestExtensionProtocol:
                         reply = await _recv(b)
                         assert reply["type"] == "error"
                         assert "already" in reply["message"].lower()
+
+        _run(scenario())
+
+
+def _origin_matches(origin: str) -> bool:
+    """Would the server's allow-list admit this Origin? (mirrors websockets' fullmatch)."""
+    return any(
+        entry is not None and entry.fullmatch(origin) is not None
+        for entry in server._allowed_origins()
+    )
+
+
+class TestOriginAllowList:
+    """`_allowed_origins()` must admit the extension + CLI, and reject web pages."""
+
+    def test_admits_browser_extension_origins(self) -> None:
+        assert _origin_matches("chrome-extension://abcdefghijklmnopabcdefghijklmnop")
+        assert _origin_matches("moz-extension://11111111-2222-3333-4444-555555555555")
+
+    def test_rejects_web_page_origins(self) -> None:
+        assert not _origin_matches("https://evil.example")
+        assert not _origin_matches("http://localhost:3000")
+        assert not _origin_matches("https://meet.google.com")
+
+    def test_admits_originless_clients(self) -> None:
+        # CLI/native clients (and these tests) send no Origin; a web page never can.
+        assert None in server._allowed_origins()
+
+    def test_pinned_origin_is_exact(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MBOT_ALLOWED_ORIGIN", "chrome-extension://pinnedid")
+        assert _origin_matches("chrome-extension://pinnedid")
+        assert not _origin_matches("chrome-extension://someotherid")
+
+
+class TestOriginHandshake:
+    """End-to-end: the running server enforces the allow-list during the handshake."""
+
+    def test_web_page_origin_is_rejected(self, isolated: Path) -> None:
+        async def scenario() -> None:
+            async with serve(
+                server._handle, "127.0.0.1", 0, origins=server._allowed_origins()
+            ) as srv:
+                port = srv.sockets[0].getsockname()[1]
+                with pytest.raises(InvalidStatus) as excinfo:
+                    async with connect(
+                        f"ws://127.0.0.1:{port}",
+                        additional_headers={"Origin": "https://evil.example"},
+                    ):
+                        pass  # handshake must fail before we get here
+                assert excinfo.value.response.status_code == 403
+
+        _run(scenario())
+
+    def test_extension_origin_is_accepted(self, isolated: Path) -> None:
+        async def scenario() -> None:
+            async with serve(
+                server._handle, "127.0.0.1", 0, origins=server._allowed_origins()
+            ) as srv:
+                port = srv.sockets[0].getsockname()[1]
+                # Entering the context means the handshake succeeded — origin accepted.
+                async with connect(
+                    f"ws://127.0.0.1:{port}",
+                    additional_headers={"Origin": "chrome-extension://testextensionid"},
+                ):
+                    pass
 
         _run(scenario())

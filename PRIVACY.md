@@ -15,6 +15,9 @@ happens to your data.
   macOS, a local search index). They are not sent to us.
 - MB contains **no analytics, no tracking, no advertising, and no third-party SDKs**
   that collect data. We (the developers) receive **no data** from your use of the app.
+- **On first use**, MB downloads the local Whisper speech-to-text model (about 1.5 GB)
+  from its public model host. This is a one-time software download and sends **none of
+  your audio, transcripts, or personal data**.
 
 ## Optional features that send data off your device (you control these)
 

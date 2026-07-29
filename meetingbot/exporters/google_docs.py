@@ -42,9 +42,16 @@ def _load_credentials() -> Credentials | None:
         return creds
     if creds.expired and creds.refresh_token:
         creds.refresh(Request())  # type: ignore[no-untyped-call]
-        config.GOOGLE_TOKEN.write_text(creds.to_json())  # type: ignore[no-untyped-call]
+        _write_token(creds)
         return creds
     return None
+
+
+def _write_token(creds: Credentials) -> None:
+    """Persist the OAuth token owner-only — it carries a long-lived refresh token."""
+    config.GOOGLE_TOKEN.parent.mkdir(parents=True, exist_ok=True)
+    config.GOOGLE_TOKEN.write_text(creds.to_json())  # type: ignore[no-untyped-call]
+    config.GOOGLE_TOKEN.chmod(0o600)
 
 
 def authorize() -> None:
@@ -59,8 +66,7 @@ def authorize() -> None:
         )
     flow = InstalledAppFlow.from_client_secrets_file(str(config.GOOGLE_CLIENT_SECRETS), SCOPES)
     creds = flow.run_local_server(port=0)
-    config.GOOGLE_TOKEN.parent.mkdir(parents=True, exist_ok=True)
-    config.GOOGLE_TOKEN.write_text(creds.to_json())
+    _write_token(creds)
 
 
 def _services(creds: Credentials) -> tuple[Any, Any]:

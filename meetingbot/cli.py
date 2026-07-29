@@ -206,6 +206,7 @@ def set_key(
     key = key.strip()
     env_file = config.CONFIG_DIR / ".env"
     config.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    config.CONFIG_DIR.chmod(0o700)  # secrets dir: owner-only
     # Upsert NVIDIA_API_KEY, preserving any other lines (mirrors the macOS Settings pane).
     lines = [
         ln
@@ -215,6 +216,7 @@ def set_key(
     if key:
         lines.append(f"NVIDIA_API_KEY={key}")
     env_file.write_text("\n".join(lines) + ("\n" if lines else ""))
+    env_file.chmod(0o600)  # holds an API key: readable only by the owner
     if key:
         masked = f"{key[:6]}…{key[-4:]}" if len(key) > 12 else "set"
         typer.secho(f"✓ key saved ({masked}) → {env_file}", fg="green", bold=True)

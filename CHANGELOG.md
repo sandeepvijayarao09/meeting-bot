@@ -14,6 +14,15 @@ All notable changes to this project are documented here. The format is based on
   transcript-only fallback are in place and unit-tested; the on-device LiteRT-LM
   inference is a device-side finish. See [docs/on-device-llm.md](docs/on-device-llm.md).
 
+### Security
+- **Capture WebSocket now enforces an origin allow-list.** `mbot serve` (the local
+  server the Chrome extension streams to) rejects WebSocket handshakes from any web-page
+  origin, admitting only browser-extension origins (and originless CLI/native clients).
+  Closes a cross-site WebSocket hijacking vector where a visited web page could drive
+  recordings on `127.0.0.1`. Pin one exact origin with `MBOT_ALLOWED_ORIGIN`.
+- **Secrets are written owner-only (`0600`).** The NVIDIA API key (`~/.config/meetingbot/.env`)
+  and the Google OAuth token are now `chmod 600`, and the config dir is `0700`.
+
 ## [1.0.0] - 2026-07-08
 
 First public release. Marketing version bumped to 1.0.0 across all platforms

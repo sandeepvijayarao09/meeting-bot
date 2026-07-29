@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import subprocess
 import wave
 from datetime import datetime
@@ -26,6 +27,25 @@ log = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000
 TAG_STREAMS = {0: "mic", 1: "sys"}
+
+
+def _allowed_origins() -> list[re.Pattern[str] | None]:
+    """Origins permitted to open the capture WebSocket.
+
+    Defends against cross-site WebSocket hijacking. Browsers don't apply CORS to
+    WebSockets, so without this any web page a user visits could reach
+    ``ws://127.0.0.1`` and drive recordings (start/stop, feed audio, spend the user's
+    summary credits) while ``mbot serve`` is running. Browsers always send an ``Origin``
+    header on the handshake, so we allow only browser-*extension* origins by default and
+    reject every web page. ``None`` keeps non-browser clients working — the CLI/native
+    path and tests send no Origin, and a web page can never be originless. Set
+    ``MBOT_ALLOWED_ORIGIN`` to pin one exact extension origin
+    (e.g. ``chrome-extension://<id>``) once it is known.
+    """
+    pinned = os.environ.get("MBOT_ALLOWED_ORIGIN", "").strip()
+    if pinned:
+        return [re.compile(re.escape(pinned)), None]
+    return [re.compile(r"(?:chrome|moz|safari-web)-extension://.+"), None]
 
 
 class ChunkWriter:
@@ -184,7 +204,7 @@ async def _handle(ws: ServerConnection) -> None:
 
 
 async def _serve(host: str, port: int) -> None:
-    async with serve(_handle, host, port, max_size=2**22):
+    async with serve(_handle, host, port, max_size=2**22, origins=_allowed_origins()):
         log.info("mbot serve — listening on ws://%s:%d", host, port)
         log.info("Start/stop recordings from the Chrome extension. Ctrl+C to quit.")
         await asyncio.get_running_loop().create_future()

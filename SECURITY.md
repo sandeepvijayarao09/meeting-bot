@@ -15,12 +15,23 @@ Meeting Bot is local-first by design:
 
 - **Audio never leaves your device.** Microphone and system audio are captured locally,
   written to your machine, and transcribed locally with Whisper.
-- **The only outbound network call** is the optional summarization request to NVIDIA NIM,
-  which sends finished **transcript text** (never audio) and runs only if you configure
-  an API key. Google Docs export, if enabled, sends the note via your own OAuth token.
+- **Your content stays local.** The only time meeting content leaves your device is the
+  optional NVIDIA NIM summary (finished **transcript text**, never audio, and only with
+  your own API key) and, if you enable it, Google Docs export (the note, via your own
+  OAuth token). On first run MB also downloads the local Whisper (and optional Gemma)
+  model from its public model host — a one-time software download that transfers **none
+  of your audio, transcripts, or personal data**.
 - **Secrets** (NVIDIA key, Google OAuth client/token) live in `~/.config/meetingbot/`
-  and are never committed. The Chrome extension talks only to `127.0.0.1`.
+  with owner-only (`0600`) permissions and are never committed.
+- **The local capture server** (`mbot serve`, used by the Chrome extension) binds to
+  `127.0.0.1` only and accepts WebSocket connections only from the extension's origin,
+  rejecting any web page (defends against cross-site WebSocket hijacking).
 
 ## Supported versions
 
-This is pre-1.0 software; security fixes are applied to `main`.
+| Version | Supported |
+|---|---|
+| 1.0.x   | ✅        |
+| < 1.0   | ❌        |
+
+Security fixes land on `main` and ship in the next `1.0.x` release.
