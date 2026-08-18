@@ -1616,7 +1616,7 @@ wheels = [
 
 [[package]]
 name = "meetingbot"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "google-api-python-client" },
@@ -1661,7 +1661,7 @@ requires-dist = [
     { name = "rumps", specifier = ">=0.4" },
     { name = "torch", marker = "extra == 'diarize'", specifier = ">=2.2" },
     { name = "typer", specifier = ">=0.12" },
-    { name = "websockets", specifier = ">=13" },
+    { name = "websockets", specifier = ">=15" },
 ]
 provides-extras = ["diarize"]
 

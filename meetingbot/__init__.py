@@ -2,7 +2,7 @@
 
 import logging
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Library convention (PEP 282): never configure logging on import — attach a
 # NullHandler so importing the package is silent. The CLI installs real handlers.

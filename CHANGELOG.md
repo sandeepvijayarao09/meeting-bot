@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.1] - 2026-08-17
+
+Security + correctness patch. Marketing version bumped for the Python/CLI and
+macOS app (which embeds the Python sidecar); the iOS app and Chrome extension
+contain none of these changes and stay at 1.0.0.
 
 ### Added
 - **On-device LLM scaffold (Gemma 4 E4B via LiteRT-LM)** — an opt-in, fully-local
@@ -22,6 +26,12 @@ All notable changes to this project are documented here. The format is based on
   recordings on `127.0.0.1`. Pin one exact origin with `MBOT_ALLOWED_ORIGIN`.
 - **Secrets are written owner-only (`0600`).** The NVIDIA API key (`~/.config/meetingbot/.env`)
   and the Google OAuth token are now `chmod 600`, and the config dir is `0700`.
+
+### Fixed
+- **`websockets` floor raised to `>=15`.** The capture server passes `re.Pattern` entries
+  to `serve(origins=...)`, which only websockets 15.0+ matches; on 13.x/14.x every
+  browser-extension handshake was rejected with 403. The lockfile already pinned 16.0, so
+  only non-locked installs were affected.
 
 ## [1.0.0] - 2026-07-08
 
@@ -72,6 +82,7 @@ First public release. Marketing version bumped to 1.0.0 across all platforms
 - Quality gate (`make check`): ruff, mypy --strict, pytest, swift build + format,
   extension tsc.
 
-[Unreleased]: https://github.com/sandeepvijayarao09/meeting-bot/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/sandeepvijayarao09/meeting-bot/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/sandeepvijayarao09/meeting-bot/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/sandeepvijayarao09/meeting-bot/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/sandeepvijayarao09/meeting-bot/releases/tag/v0.1.0

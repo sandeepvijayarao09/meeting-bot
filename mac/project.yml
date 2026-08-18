@@ -39,8 +39,8 @@ targets:
       base:
         PRODUCT_NAME: MB
         PRODUCT_BUNDLE_IDENTIFIER: ai.meetingbot.mb
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0.1"
+        CURRENT_PROJECT_VERSION: "2"
         # Reuse the existing hand-written plist + entitlements (paths are relative to
         # this spec's directory, mac/).
         INFOPLIST_FILE: MeetingBot/Info.plist
