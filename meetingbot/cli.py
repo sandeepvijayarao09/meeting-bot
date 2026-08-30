@@ -451,12 +451,25 @@ def doctor() -> None:
 
     if config.AUDIOCAP_BIN.exists():
         typer.secho(f"✓ audiocap binary: {config.AUDIOCAP_BIN}", fg="green")
+    elif config.FROZEN:
+        # The bundled sidecar never captures: the macOS app records in-process via
+        # CaptureKit and only shells out here to process the finished session.
+        typer.echo("  capture: handled by the macOS app (CaptureKit), not audiocap")
     else:
         ok = False
         typer.secho("✗ audiocap binary missing — build it:", fg="red")
         typer.echo("    cd mac && swift build -c release")
 
     typer.echo(f"  whisper model: {config.WHISPER_MODEL} (downloads on first use)")
+
+    # Prompt templates are bundled data in a frozen build; if they did not make it in,
+    # every summary would fail at read_text(), so surface it here rather than at runtime.
+    template = config.resolve_template(config.TEMPLATE)
+    if template.exists():
+        typer.secho(f"✓ prompt template: {template}", fg="green")
+    else:
+        ok = False
+        typer.secho(f"✗ prompt template missing: {template}", fg="red")
 
     if summarize.have_key():
         try:

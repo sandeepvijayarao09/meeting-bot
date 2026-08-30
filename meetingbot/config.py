@@ -4,15 +4,28 @@ Reads ~/.config/meetingbot/.env first, then a repo-local .env (repo wins).
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+# True inside the PyInstaller sidecar the macOS app bundles (scripts/build-sidecar.sh).
+# There the package lives in Contents/Resources/_internal, so `__file__`-relative repo
+# paths (prompts/, notes/, mac/.build/) do not exist: bundled data is unpacked to
+# `sys._MEIPASS` instead, and nothing under the signed bundle is writable.
+FROZEN = getattr(sys, "frozen", False)
+_MEIPASS = getattr(sys, "_MEIPASS", None)
+
+#: Repo checkout root. Only meaningful when running from source.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+#: Root for read-only resources shipped alongside the code (prompt templates).
+RESOURCE_ROOT = Path(_MEIPASS) if _MEIPASS else PROJECT_ROOT
+
 CONFIG_DIR = Path.home() / ".config" / "meetingbot"
 
 load_dotenv(CONFIG_DIR / ".env")
-load_dotenv(PROJECT_ROOT / ".env", override=True)
+if not FROZEN:
+    load_dotenv(PROJECT_ROOT / ".env", override=True)
 
 
 def _path(env: str, default: Path) -> Path:
@@ -22,12 +35,23 @@ def _path(env: str, default: Path) -> Path:
 
 DATA_DIR = _path("MBOT_DATA_DIR", Path.home() / ".local" / "share" / "meetingbot")
 SESSIONS_DIR = DATA_DIR / "sessions"
-NOTES_DIR = _path("MBOT_NOTES_DIR", PROJECT_ROOT / "notes")
+# Frozen builds must not write inside the signed app bundle; fall back to the data
+# dir, matching Paths.notesDirectory in the macOS app (which also pins MBOT_NOTES_DIR).
+_DEFAULT_NOTES_DIR = DATA_DIR / "notes" if FROZEN else PROJECT_ROOT / "notes"
+NOTES_DIR = _path("MBOT_NOTES_DIR", _DEFAULT_NOTES_DIR)
 DB_PATH = DATA_DIR / "index.db"
 CURRENT_FILE = DATA_DIR / "current.json"
 USAGE_LOG = DATA_DIR / "usage.log"
 
-AUDIOCAP_BIN = _path("MBOT_AUDIOCAP", PROJECT_ROOT / "mac" / ".build" / "release" / "audiocap")
+# From source this is the SwiftPM build product; in the sidecar it would sit next to
+# the frozen executable. The macOS app never needs it — it captures in-process via
+# CaptureKit — so a frozen build without it is not an error (see `mbot doctor`).
+_DEFAULT_AUDIOCAP = (
+    Path(sys.executable).resolve().parent / "audiocap"
+    if FROZEN
+    else PROJECT_ROOT / "mac" / ".build" / "release" / "audiocap"
+)
+AUDIOCAP_BIN = _path("MBOT_AUDIOCAP", _DEFAULT_AUDIOCAP)
 
 CHUNK_SECONDS = int(os.environ.get("MBOT_CHUNK_SECONDS", "30"))
 WHISPER_MODEL = os.environ.get("MBOT_WHISPER_MODEL", "mlx-community/whisper-large-v3-turbo")
@@ -56,7 +80,7 @@ NIM_REASONING = os.environ.get("MBOT_NIM_REASONING", "low").strip().lower()
 # bound it so summarization fails fast (and the note falls back to transcript-only).
 NIM_TIMEOUT = float(os.environ.get("MBOT_NIM_TIMEOUT", "90"))
 
-PROMPTS_DIR = PROJECT_ROOT / "prompts"
+PROMPTS_DIR = RESOURCE_ROOT / "prompts"
 PROMPT_TEMPLATE = PROMPTS_DIR / "meeting_summary.md"  # default / general
 
 # Meeting-type templates ("Recipes"): each is prompts/<name>.md sharing the same

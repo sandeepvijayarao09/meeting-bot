@@ -10,7 +10,7 @@ URL in every store listing.
 
 ## ⚠️ Before any public launch: verify on real hardware
 
-`make check` is green (Python 212 + coverage, Swift/MeetingBotKit 20, iOS build+tests,
+`make check` is green (Python 216 + coverage, Swift/MeetingBotKit 20, iOS build+tests,
 extension) and every app produces a release artifact — but automated tests **mock the
 network and cannot exercise the GUI/device**. Before shipping, on real hardware:
 
@@ -111,6 +111,18 @@ passes, embedded `mbot` runs). Hardened-runtime entitlements + privacy manifest 
 The app is also a standard, archivable Xcode project (`mac/project.yml` → `make mac-project`,
 mirroring iOS) for IDE work and a Developer ID `Product ▸ Archive`; `build-app.sh` remains
 the release path because it bundles + signs the `mbot` sidecar the DMG needs.
+
+**Always smoke-test the built bundle, not just the source tree.** The sidecar is a
+separate PyInstaller build, and both defects that shipped in the 1.0.0 DMG (missing
+prompt templates, a stale sidecar) were invisible to `make check`:
+```bash
+./dist/MB.app/Contents/Resources/mbot doctor
+```
+It must print the release version and `✓ prompt template:` — if the template line is
+missing or red, the DMG cannot summarize. `build-app.sh` now rebuilds the sidecar
+whenever its inputs change (`build-sidecar.sh --if-stale` fingerprints `meetingbot/`,
+`prompts/`, `uv.lock`, and `pyproject.toml`), so `dist/` can no longer leak an old build
+into a new release.
 
 **Ship a notarized download (recommended first release):**
 ```bash

@@ -30,6 +30,22 @@ contain none of these changes and stay at 1.0.0.
   and the Google OAuth token are now `chmod 600`, and the config dir is `0700`.
 
 ### Fixed
+- **The macOS app could not summarize anything.** `config.PROMPTS_DIR` was resolved
+  relative to the package directory, which inside the PyInstaller sidecar is
+  `MB.app/Contents/Resources/_internal` — and `prompts/` was never bundled at all, so
+  every summary died on `FileNotFoundError` reading its template. The sidecar now ships
+  the templates (`--add-data`) and `config` resolves bundled resources from
+  `sys._MEIPASS`. The 1.0.0 DMG was affected; running from a source checkout was not.
+- **The frozen build no longer defaults to writing inside the app bundle.** Without an
+  `MBOT_NOTES_DIR` override, notes resolved to `Contents/Resources/_internal/notes` — a
+  read-only location in a signed app. Frozen builds now default to
+  `~/.local/share/meetingbot/notes`, matching `Paths.notesDirectory` in the app.
+- **Release builds no longer embed a stale sidecar.** `build-app.sh` only checked that
+  `dist/sidecar/mbot` *existed*, and `dist/` survives across releases — so a months-old
+  sidecar was silently re-embedded into a freshly versioned app. `build-sidecar.sh` now
+  fingerprints its inputs and `--if-stale` rebuilds whenever they change.
+- **`mbot doctor` verifies the prompt template** (and stops reporting a missing
+  `audiocap` as a failure in the bundled sidecar, which never captures — the app does).
 - **macOS app bundle now reports 1.0.1.** `mac/MeetingBot/Info.plist` was left at
   1.0.0 when the version was bumped elsewhere, so `scripts/build-app.sh` (which reads
   the marketing version from that plist) would have stamped the app — and named the

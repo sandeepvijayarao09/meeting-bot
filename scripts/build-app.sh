@@ -44,10 +44,10 @@ echo "▸ Version $MARKETING_VERSION (build $BUILD_NUMBER)"
 # the shipped app can't transcribe (Paths.mbotExecutable finds nothing on a clean Mac),
 # so when EMBED_SIDECAR=1 a missing sidecar is a HARD error — never ship a broken app.
 if [ "${EMBED_SIDECAR:-0}" = "1" ]; then
-  if [ ! -x "$PROJECT/dist/sidecar/mbot" ]; then
-    echo "▸ Sidecar not found — building it (scripts/build-sidecar.sh)…"
-    bash "$PROJECT/scripts/build-sidecar.sh"
-  fi
+  # `--if-stale` rebuilds when the sidecar is missing OR its fingerprint no longer
+  # matches the current Python sources — a presence check alone silently ships the
+  # sidecar left in dist/ by a previous release.
+  bash "$PROJECT/scripts/build-sidecar.sh" --if-stale
   [ -x "$PROJECT/dist/sidecar/mbot" ] || { echo "✗ sidecar unavailable — cannot embed"; exit 1; }
   echo "▸ Embedding mbot sidecar…"
   cp -R "$PROJECT/dist/sidecar/." "$APP/Contents/Resources/"
