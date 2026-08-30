@@ -111,4 +111,5 @@ sign_macho "$APP" 1
 codesign --verify --deep --strict "$APP" && echo "  ✓ signature valid"
 echo "✓ Built $APP"
 echo "  Launch:  open \"$APP\"   — a Dock icon appears and the Meetings window opens."
-echo "  If Finder says 'unidentified developer': right-click the app → Open → Open (once)."
+# macOS 15 removed the right-click ▸ Open bypass, so point at the path that still works.
+echo "  If macOS blocks it: click Done, then System Settings ▸ Privacy & Security ▸ Open Anyway."

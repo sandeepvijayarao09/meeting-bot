@@ -18,19 +18,33 @@ transcript *text* when you opt into cloud summaries with your own key.
 1. Download **`MB-1.0.1-<build>.dmg`** from the
    [latest release](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest).
 2. Open the DMG and **drag `MB.app` into Applications**.
-3. **First launch (important).** Releases up to and including **1.0.1** are ad-hoc
-   signed — not yet notarized by Apple — so Gatekeeper blocks a normal double-click.
-   (Notarized releases open normally; this step will say so when that lands.) Open it
-   once the safe way:
-   - **Right-click `MB.app` → Open → Open.** (You only do this once.)
-   - If macOS still refuses, run:
-     ```bash
-     xattr -dr com.apple.quarantine /Applications/MB.app
-     ```
-   A 🎤 icon appears in the menu bar and the **Meetings** window opens.
+3. **First launch (important).** Releases up to and including **1.0.1** are ad-hoc signed
+   — not yet notarized by Apple — so macOS blocks the first launch with *"MB" Not Opened
+   — Apple could not verify "MB" is free of malware*. **Click `Done`, not `Move to
+   Trash`** (Trash is the highlighted button). Then, on **macOS 15 Sequoia or later**:
 
-> Why the extra step: a notarized build (no warning) needs an Apple Developer ID.
-> See [DISTRIBUTION.md](DISTRIBUTION.md) to produce one with your own account.
+   1. **Apple menu** ▸ **System Settings** ▸ **Privacy & Security**.
+   2. Scroll to **Security**. You'll see *"MB" was blocked to protect your Mac*.
+   3. Click **Open Anyway**, authenticate, and confirm **Open Anyway** once more.
+
+   That button only appears for about an hour after a blocked launch, so if it's gone,
+   double-click the app again first. On **macOS 14 Sonoma** you can instead right-click
+   `MB.app` → **Open** → **Open** — Apple removed that shortcut in macOS 15.
+
+   Either way it's once per install. A 🎤 icon appears in the menu bar and the
+   **Meetings** window opens.
+
+   <details><summary>Terminal alternative (any version)</summary>
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/MB.app
+   ```
+   This strips the download-quarantine flag, so Gatekeeper stops gating the app.
+   </details>
+
+> Why any of this: Gatekeeper only lets unsigned apps through by explicit user consent.
+> A **notarized** build opens with no warning at all — that needs an Apple Developer ID
+> ($99/yr). See [RELEASE.md](RELEASE.md#ship-a-notarized-download) to produce one.
 
 ## 2. Grant permissions (first recording)
 
@@ -130,7 +144,7 @@ see [docs/on-device-llm.md](docs/on-device-llm.md).
 
 | Symptom | Fix |
 |---|---|
-| "MB.app can't be opened / unidentified developer" | Right-click → Open → Open, or `xattr -dr com.apple.quarantine /Applications/MB.app` (see step 1). |
+| "MB Not Opened" / "Apple could not verify MB" | Click **Done**, then System Settings ▸ Privacy & Security ▸ **Open Anyway** (macOS 15+). Full steps in [step 1](#1-install-the-macos-app). |
 | First recording captures no "Them" audio | Enable **Screen & System Audio Recording** in System Settings → Privacy & Security, then **quit and reopen** MB.app. |
 | Notes save but there's no summary | You haven't set an API key (step 3), or the request failed — the transcript-only note is expected. |
 | Extension won't connect | Make sure `mbot serve` is running (`ws://127.0.0.1:8765`) on the same Mac. |
