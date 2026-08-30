@@ -15,7 +15,7 @@ transcript *text* when you opt into cloud summaries with your own key.
 
 ## 1. Install the macOS app
 
-1. Download **`MB-1.0.0-<build>.dmg`** from the
+1. Download **`MB-1.0.1-<build>.dmg`** from the
    [latest release](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest).
 2. Open the DMG and **drag `MB.app` into Applications**.
 3. **First launch (important).** This build is signed ad-hoc (not yet notarized by

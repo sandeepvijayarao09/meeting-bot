@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - 2026-08-17
+## [1.0.1] - 2026-08-29
 
 Security + correctness patch. Marketing version bumped for the Python/CLI and
 macOS app (which embeds the Python sidecar); the iOS app and Chrome extension
@@ -28,6 +28,10 @@ contain none of these changes and stay at 1.0.0.
   and the Google OAuth token are now `chmod 600`, and the config dir is `0700`.
 
 ### Fixed
+- **macOS app bundle now reports 1.0.1.** `mac/MeetingBot/Info.plist` was left at
+  1.0.0 when the version was bumped elsewhere, so `scripts/build-app.sh` (which reads
+  the marketing version from that plist) would have stamped the app — and named the
+  DMG — `1.0.0`. `tests/test_version.py` now fails on that drift.
 - **`websockets` floor raised to `>=15`.** The capture server passes `re.Pattern` entries
   to `serve(origins=...)`, which only websockets 15.0+ matches; on 13.x/14.x every
   browser-extension handshake was rejected with 403. The lockfile already pinned 16.0, so

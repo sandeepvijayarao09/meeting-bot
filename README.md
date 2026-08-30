@@ -213,7 +213,7 @@ make check
 
 | Layer | Tooling |
 |---|---|
-| Python (`meetingbot/`, `tests/`) | ruff (lint+format), mypy `--strict`, pytest (208 tests) |
+| Python (`meetingbot/`, `tests/`) | ruff (lint+format), mypy `--strict`, pytest (211 tests) |
 | Swift (`audiocap/`) | swift-format (Apple style), no force-unwraps, modular sources |
 | Extension (`chrome-extension/`) | `tsc --noEmit` with `checkJs` + JSDoc types + chrome-types |
 

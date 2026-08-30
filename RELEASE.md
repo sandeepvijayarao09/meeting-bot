@@ -10,7 +10,7 @@ URL in every store listing.
 
 ## ⚠️ Before any public launch: verify on real hardware
 
-`make check` is green (Python 208 + coverage, Swift/MeetingBotKit 20, iOS build+tests,
+`make check` is green (Python 211 + coverage, Swift/MeetingBotKit 20, iOS build+tests,
 extension) and every app produces a release artifact — but automated tests **mock the
 network and cannot exercise the GUI/device**. Before shipping, on real hardware:
 
@@ -147,6 +147,22 @@ URL. Scope + estimate this on its own; it's a multi-week build.
 ## Versioning
 
 Build numbers auto-increment from the git commit count; marketing version defaults to the
-plist value (override both with `MB_VERSION` / `MB_BUILD`). For the first public release,
-bump the marketing version to **1.0.0** across `pyproject.toml`, `mac/MeetingBot/Info.plist`,
-`ios/MB/project.yml` (and future Android `versionName`), and tag the release.
+plist value (override both with `MB_VERSION` / `MB_BUILD`).
+
+Nothing reconciles these files automatically, so bump every one that the release touches:
+
+| File | Field | Covers |
+|---|---|---|
+| `pyproject.toml` | `version` | Python package / CLI |
+| `meetingbot/__init__.py` | `__version__` | Python package / CLI |
+| `mac/MeetingBot/Info.plist` | `CFBundleShortVersionString` | **the release DMG** (`build-app.sh` reads it, and `build-dmg.sh` names the file from it) |
+| `mac/project.yml` | `MARKETING_VERSION` | the Xcode/archive build of the same app |
+| `ios/MB/project.yml` | `CFBundleShortVersionString` + `MARKETING_VERSION` | iOS app |
+| `chrome-extension/manifest.json` + `package.json` | `version` | extension (also names the Web Store zip) |
+| `INSTALL.md` | download filenames | what users are told to download |
+
+Platforms may version independently — a Python-only patch does not need to re-version
+iOS or the extension — but say so in the CHANGELOG entry. `tests/test_version.py` enforces
+the pairs that must never diverge (package vs. `pyproject`, and the macOS plist vs.
+`mac/project.yml` vs. the embedded Python sidecar). Then tag the release (`vX.Y.Z`) and
+attach the DMG + extension zip to the GitHub release.
