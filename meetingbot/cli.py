@@ -11,13 +11,30 @@ from pathlib import Path
 
 import typer
 
-from . import config, notes, recorder, summarize
+from . import __version__, config, notes, recorder, summarize
 
 app = typer.Typer(help="Local Granola-style meeting notetaker.", no_args_is_help=True)
 
 
+def _version_callback(value: bool) -> None:
+    """Print the version and exit — eager, so it works without a subcommand."""
+    if value:
+        typer.echo(f"mbot {__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
-def _main(verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose logging")) -> None:
+def _main(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose logging"),
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        help="Show the version and exit",
+        callback=_version_callback,
+        is_eager=True,
+    ),
+) -> None:
     """Install a stderr log handler for the meetingbot package (stdout stays clean
     for machine-readable output like `process --print-note-path`)."""
     handler = logging.StreamHandler(sys.stderr)
@@ -429,6 +446,8 @@ def serve(
 def doctor() -> None:
     """Check that everything is set up."""
     ok = True
+
+    typer.echo(f"  mbot version: {__version__}")
 
     if config.AUDIOCAP_BIN.exists():
         typer.secho(f"✓ audiocap binary: {config.AUDIOCAP_BIN}", fg="green")

@@ -11,6 +11,8 @@ macOS app (which embeds the Python sidecar); the iOS app and Chrome extension
 contain none of these changes and stay at 1.0.0.
 
 ### Added
+- **`mbot --version` (`-V`)** — the CLI could not report its own version, which
+  made bug reports ambiguous. `mbot doctor` now prints it too.
 - **On-device LLM scaffold (Gemma 4 E4B via LiteRT-LM)** — an opt-in, fully-local
   summary backend mirroring Google AI Edge Eloquent, selected by `MBOT_LLM=local`
   (`cloud` remains the default; no model is bundled, so shipped behavior is unchanged).

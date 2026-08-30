@@ -109,6 +109,7 @@ mbot transcribe <dir>        # transcript only
 mbot search "query"          # full-text search across your notes
 mbot serve                   # localhost server for the Chrome extension
 mbot doctor                  # environment / connectivity check
+mbot --version               # version (quote it in bug reports)
 ```
 
 `mbot --help` lists everything.

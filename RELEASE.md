@@ -10,7 +10,7 @@ URL in every store listing.
 
 ## ⚠️ Before any public launch: verify on real hardware
 
-`make check` is green (Python 211 + coverage, Swift/MeetingBotKit 20, iOS build+tests,
+`make check` is green (Python 212 + coverage, Swift/MeetingBotKit 20, iOS build+tests,
 extension) and every app produces a release artifact — but automated tests **mock the
 network and cannot exercise the GUI/device**. Before shipping, on real hardware:
 

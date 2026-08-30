@@ -48,3 +48,15 @@ def test_macos_app_version_matches_python_backend() -> None:
         plist_version = plistlib.load(fh)["CFBundleShortVersionString"]
 
     assert plist_version == meetingbot.__version__
+
+
+def test_cli_reports_version() -> None:
+    """`mbot --version` works with no subcommand — bug reports need it."""
+    from typer.testing import CliRunner
+
+    from meetingbot.cli import app
+
+    for flag in ("--version", "-V"):
+        result = CliRunner().invoke(app, [flag])
+        assert result.exit_code == 0, result.output
+        assert meetingbot.__version__ in result.output
