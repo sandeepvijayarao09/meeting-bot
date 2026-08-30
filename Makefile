@@ -2,7 +2,7 @@
 
 .PHONY: check lint type test swift-build swift-lint swift-test \
         mac-project mac-build ios-project ios-build ios-test \
-        ext-check ext-test ext-package app models clean
+        ext-check ext-test ext-package app release-check notarize models clean
 
 # Full quality gate. Order matters: swift-build runs before `test` so the
 # `mbot doctor` test finds the freshly built release audiocap binary.
@@ -77,6 +77,19 @@ mac-build: mac-project
 # so it can embed and inside-out-sign the Python `mbot` sidecar the DMG needs.
 app:
 	bash scripts/build-app.sh
+
+# Audit the BUILT bundle (dist/MB.app + its DMG) against every release gate that can
+# be checked locally: signature, hardened runtime, notarization ticket, Gatekeeper
+# verdict, nested-binary signing, version stamp, and a sidecar smoke test. `make check`
+# tests the source tree; this tests what users actually download.
+release-check:
+	bash scripts/preflight-release.sh
+
+# Sign + notarize + staple for public distribution. Needs your Developer ID cert and a
+# notarytool profile; both are verified before the build starts. See RELEASE.md.
+notarize:
+	@[ -n "$$DEVELOPER_ID" ] || { echo "set DEVELOPER_ID=\"Developer ID Application: NAME (TEAMID)\" — see RELEASE.md"; exit 1; }
+	NOTARY_PROFILE=$${NOTARY_PROFILE:-meetingbot-notary} bash scripts/sign-notarize.sh
 
 # Benchmark all Whisper model variants (downloads models on first run).
 models:

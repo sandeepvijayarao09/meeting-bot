@@ -2,8 +2,8 @@
 
 How each MB app ships, what the repo already prepares (verified by `make check` + the
 per-app builds below), and the steps that need **your** developer accounts / credentials.
-Privacy-policy text is in [PRIVACY.md](PRIVACY.md) — host it at a public URL and use that
-URL in every store listing.
+Privacy-policy text is in [PRIVACY.md](PRIVACY.md); since the repo is public it already has
+a usable URL — <https://github.com/sandeepvijayarao09/meeting-bot/blob/main/PRIVACY.md> — so paste that into every store listing.
 
 > Targets: **Chrome extension → Web Store** · **iOS → App Store** · **macOS → notarized
 > download now, Mac App Store next (native migration underway)** · **Android → planned.**
@@ -32,16 +32,13 @@ hard gate, not a formality.
 | Apple Distribution cert + provisioning / App Store Connect app records | iOS (+ macOS App Store) |
 | Chrome Web Store developer account ($5 once) | Chrome extension |
 | Google Play account ($25 once) + upload keystore | Play Store (after the Android app exists) |
-| A public **privacy-policy URL** (host [PRIVACY.md](PRIVACY.md)) | all stores |
+| ~~A public **privacy-policy URL**~~ — done, the repo is public: [app](https://github.com/sandeepvijayarao09/meeting-bot/blob/main/PRIVACY.md) · [extension](https://github.com/sandeepvijayarao09/meeting-bot/blob/main/chrome-extension/PRIVACY.md) | all stores |
 | Real-device screenshots, descriptions, keywords, age rating | all store listings |
 
 `security find-identity -v -p codesigning` currently shows **no distribution identities on
-this machine** — install them (Xcode → Settings → Accounts → Manage Certificates) and create
-the notary profile before the signing steps below:
-```bash
-xcrun notarytool store-credentials meetingbot-notary \
-  --apple-id you@apple-id --team-id YOURTEAMID --password <app-specific-password>
-```
+this machine**, so nothing can be signed for distribution yet. Installing the certificate
+and creating the notary profile are the first two steps of
+[§3 macOS](#ship-a-notarized-download); do them before any signing step below.
 
 ## Bring-your-own-key (all AI features)
 
@@ -60,7 +57,8 @@ pass; `make ext-package` produces the upload artifact.
 
 **You do:**
 1. `make ext-package` → `dist/meeting-bot-extension-<version>.zip` (production files only).
-2. Host [chrome-extension/PRIVACY.md](chrome-extension/PRIVACY.md) at a public URL.
+2. Privacy-policy URL (already live, the repo is public):
+   <https://github.com/sandeepvijayarao09/meeting-bot/blob/main/chrome-extension/PRIVACY.md>
 3. In the Web Store dashboard: upload the zip, paste the privacy-policy URL in the Privacy
    tab, fill the single-purpose + data-usage forms, add screenshots (≥1; use
    [store/](store/) assets), and submit. Listing copy: [store/listing.md](store/listing.md).
@@ -112,28 +110,74 @@ The app is also a standard, archivable Xcode project (`mac/project.yml` → `mak
 mirroring iOS) for IDE work and a Developer ID `Product ▸ Archive`; `build-app.sh` remains
 the release path because it bundles + signs the `mbot` sidecar the DMG needs.
 
-**Always smoke-test the built bundle, not just the source tree.** The sidecar is a
-separate PyInstaller build, and both defects that shipped in the 1.0.0 DMG (missing
-prompt templates, a stale sidecar) were invisible to `make check`:
-```bash
-./dist/MB.app/Contents/Resources/mbot doctor
-```
-It must print the release version and `✓ prompt template:` — if the template line is
-missing or red, the DMG cannot summarize. `build-app.sh` now rebuilds the sidecar
-whenever its inputs change (`build-sidecar.sh --if-stale` fingerprints `meetingbot/`,
-`prompts/`, `uv.lock`, and `pyproject.toml`), so `dist/` can no longer leak an old build
-into a new release.
+**Never trust the source tree as evidence about the bundle.** The sidecar is a separate
+PyInstaller build; `make release-check` (below) is what actually inspects it. `build-app.sh`
+also rebuilds the sidecar whenever its inputs change (`build-sidecar.sh --if-stale`
+fingerprints `meetingbot/`, `prompts/`, `uv.lock`, `pyproject.toml`), so `dist/` can no
+longer leak a previous release's build into a new one.
 
-**Ship a notarized download (recommended first release):**
+### Ship a notarized download
+
+Everything below the two credential steps is automated and verified; those two steps need
+your Apple account and cannot be scripted for you.
+
+**Step 1 (you, once): install a Developer ID Application certificate.**
+Xcode ▸ Settings ▸ Accounts ▸ (your Apple ID) ▸ Manage Certificates ▸ **+** ▸ *Developer ID
+Application*. This requires an active $99/yr Apple Developer Program membership; a free
+account cannot create Developer ID certificates. Then confirm and copy the exact identity
+string — you need the `Developer ID Application: NAME (TEAMID)` text verbatim:
 ```bash
-DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" \
-NOTARY_PROFILE=meetingbot-notary EMBED_SIDECAR=1 \
-bash scripts/sign-notarize.sh      # builds + signs sidecar + app, notarizes, staples
+security find-identity -v -p codesigning
 ```
-Distribute the resulting DMG. **Size:** ~860 MB installed (bundled Python + MLX-Whisper
-sidecar), but the DMG compresses to **~312 MB** for download. Once notarized, it opens
-without the Gatekeeper right-click dance. The native migration (below) removes the sidecar
-and shrinks this dramatically.
+
+**Step 2 (you, once): create a notarytool credential profile.**
+Generate an app-specific password at <https://account.apple.com> ▸ Sign-In and Security ▸
+App-Specific Passwords (your normal Apple ID password will not work), then:
+```bash
+xcrun notarytool store-credentials meetingbot-notary \
+  --apple-id you@example.com --team-id TEAMID --password xxxx-xxxx-xxxx-xxxx
+```
+
+**Step 3: build, notarize, staple, verify.**
+```bash
+DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" make notarize
+```
+`scripts/sign-notarize.sh` verifies both credentials **before** the ~15-minute build, signs
+inside-out with the hardened runtime and a secure timestamp, notarizes and staples the
+**app**, packages the stapled app into the DMG, then signs, notarizes and staples the DMG
+too, and finishes by running the preflight below. Stapling the app matters: a DMG-only
+ticket leaves the copy in `/Applications` unverifiable on an offline Mac.
+
+If Apple rejects the submission, read the actual reason — it is never guesswork:
+```bash
+xcrun notarytool log <submission-id> --keychain-profile meetingbot-notary
+```
+
+**Step 4: verify the artifact, always.**
+```bash
+make release-check
+```
+This audits `dist/MB.app` and its DMG — signature validity, Developer ID authority and team,
+hardened runtime, secure timestamp, entitlements, every nested Mach-O, the stapled ticket,
+the Gatekeeper verdict, the version stamp, and a sidecar smoke test. It must end with
+`✓ fit for public distribution`. Both defects that shipped in the 1.0.0 DMG (missing prompt
+templates, a stale sidecar) were invisible to `make check` and are caught here.
+
+**Step 5: publish it.** Notarizing from the `v1.0.1` tag reproduces the same build number,
+so the DMG keeps its exact filename and you can replace the asset in place rather than
+cutting a version whose only change is a better signature:
+```bash
+git checkout v1.0.1
+DEVELOPER_ID="Developer ID Application: Your Name (TEAMID)" make notarize
+make release-check                                    # must say: fit for public distribution
+gh release upload v1.0.1 dist/MB-1.0.1-34.dmg --clobber
+```
+Then update [INSTALL.md](INSTALL.md) §1 and the release notes — the right-click ▸ Open
+workaround no longer applies, and telling users to bypass Gatekeeper when they no longer
+need to is worse than useless.
+
+**Size:** ~860 MB installed (bundled Python + MLX-Whisper sidecar), compressing to ~312 MB
+for download. The native migration (below) removes the sidecar and shrinks this dramatically.
 
 **Mac App Store (native migration):** the app store
 requires the App Sandbox, which forbids the Python subprocess. The migration path: the

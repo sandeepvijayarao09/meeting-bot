@@ -57,8 +57,8 @@ REQUIREMENTS
 - Collects: **Audio** (tab + microphone, user-initiated) — processed locally on the
   user's device; not transmitted to the developer; not sold; not used for unrelated
   purposes; not transferred for creditworthiness/lending.
-- Privacy policy URL: host `chrome-extension/PRIVACY.md` somewhere public (e.g. GitHub
-  repo) and paste its URL.
+- Privacy policy URL — the repo is public, so this is already live; paste it as-is:
+  <https://github.com/sandeepvijayarao09/meeting-bot/blob/main/chrome-extension/PRIVACY.md>
 
 ## Assets (in this folder)
 
@@ -72,7 +72,7 @@ REQUIREMENTS
    (sign in with the Google account you want to own the extension).
 2. "New item" → upload `dist/meeting-bot-extension-1.0.0.zip`.
 3. Paste the copy above into the listing; upload `screenshot-1.png`.
-4. Fill the Privacy tab using the disclosures above + your hosted privacy policy URL.
+4. Fill the Privacy tab using the disclosures above + the privacy policy URL above.
 5. Set visibility (consider **Unlisted** — installable via link, no public listing —
    since the extension requires the companion Mac app).
 6. Submit for review. Audio-capture extensions get human review; expect a few days.

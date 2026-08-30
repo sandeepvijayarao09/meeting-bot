@@ -18,8 +18,10 @@ transcript *text* when you opt into cloud summaries with your own key.
 1. Download **`MB-1.0.1-<build>.dmg`** from the
    [latest release](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest).
 2. Open the DMG and **drag `MB.app` into Applications**.
-3. **First launch (important).** This build is signed ad-hoc (not yet notarized by
-   Apple), so Gatekeeper will block a normal double-click. Open it once the safe way:
+3. **First launch (important).** Releases up to and including **1.0.1** are ad-hoc
+   signed — not yet notarized by Apple — so Gatekeeper blocks a normal double-click.
+   (Notarized releases open normally; this step will say so when that lands.) Open it
+   once the safe way:
    - **Right-click `MB.app` → Open → Open.** (You only do this once.)
    - If macOS still refuses, run:
      ```bash

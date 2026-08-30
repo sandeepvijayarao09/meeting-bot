@@ -217,6 +217,14 @@ make check
 | Swift (`audiocap/`) | swift-format (Apple style), no force-unwraps, modular sources |
 | Extension (`chrome-extension/`) | `tsc --noEmit` with `checkJs` + JSDoc types + chrome-types |
 
+`make check` tests the source tree. What users download is a bundle, so the release
+artifact gets its own audit — signature, hardened runtime, notarization ticket, Gatekeeper
+verdict, every nested binary, and a smoke test of the embedded sidecar:
+
+```bash
+make release-check
+```
+
 `make models` benchmarks every supported Whisper variant on synthesized speech
 (speed + keyword accuracy) so you can choose `MBOT_WHISPER_MODEL` for your machine.
 Measured on this M-series Mac (warm, 13.7 s clip): tiny 222×, base 152×, small 67×,
