@@ -183,11 +183,26 @@ class TestDoctor:
     ) -> None:
         from meetingbot import summarize
 
+        # Don't depend on a local Swift build: point doctor at a stand-in binary.
+        audiocap = isolated / "audiocap"
+        audiocap.write_text("")
+        monkeypatch.setattr(config, "AUDIOCAP_BIN", audiocap)
         monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
         monkeypatch.setattr(summarize, "ping", lambda: "ok")
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
         assert "NIM reachable" in result.output
+
+    def test_flags_missing_audiocap(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from meetingbot import summarize
+
+        monkeypatch.setattr(config, "AUDIOCAP_BIN", isolated / "no-such-audiocap")
+        monkeypatch.setattr(config, "FROZEN", False)
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(summarize, "ping", lambda: "ok")
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 1
+        assert "audiocap binary missing" in result.output
 
 
 class TestRecordGuard:
