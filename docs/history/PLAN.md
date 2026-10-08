@@ -1,3 +1,7 @@
+> **Archived.** This is the original June 2026 build log, kept for history. Status
+> notes and test counts below are from that time; see the README, ROADMAP.md and
+> CHANGELOG.md for the current state.
+
 # Meeting Bot — Build Plan
 
 > **Status (2026-06-11):** Phases 0–4 are built and verified (see README.md for usage).

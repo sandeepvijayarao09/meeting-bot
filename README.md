@@ -1,5 +1,7 @@
 # Meeting Bot
 
+![Meeting Bot: a recording in progress and the finished note](store/screenshot-1.png)
+
 **A local-first AI meeting notetaker for macOS.** Like Granola or Otter, but your audio
 never leaves your Mac — it's transcribed on-device with Whisper, and only the finished
 text is (optionally) summarized via a free API.
@@ -30,11 +32,21 @@ needs no meeting-platform integration.
 > network call sends finished transcript *text* to summarize it — and you can point
 > that at a local model instead.
 
-See [ROADMAP.md](ROADMAP.md) for what's planned (speaker diarization, in-app notes
-browser, calendar integration, ask-your-meetings) and [CONTRIBUTING.md](CONTRIBUTING.md)
-to help.
+See [ROADMAP.md](ROADMAP.md) for what has shipped and what's next (an MCP server, a
+live transcript view, on-device summaries) and [CONTRIBUTING.md](CONTRIBUTING.md) to help.
 
-## Setup (once)
+## Download
+
+**[Download MB.dmg (v1.0.1, Apple Silicon, macOS 14+)](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest)**,
+then follow [INSTALL.md](INSTALL.md). The 1.0.x builds are ad-hoc signed, not notarized,
+so the first launch needs one trip to System Settings → Privacy & Security → **Open
+Anyway**; INSTALL.md walks through it. The Chrome extension zip is on the same release
+page.
+
+The rest of this README is for running from source (CLI, development, or building the
+app yourself).
+
+## Setup from source (once)
 
 1. **NVIDIA NIM key (free):** sign up at <https://build.nvidia.com> (email only), create
    an API key, then:
@@ -199,8 +211,8 @@ The summary prompt is `prompts/meeting_summary.md` — edit it to taste.
    ~500+ meetings; NIM usage is logged to `~/.local/share/meetingbot/usage.log`. You
    can also reshape any meeting on demand with `mbot transform key_points|formal|short|long`.
 
-See `PLAN.md` for the full build plan and roadmap (auto-detection of meetings,
-calendar titles, ask-my-meetings Q&A…).
+See [ROADMAP.md](ROADMAP.md) for what's next. The original build log lives in
+[docs/history/PLAN.md](docs/history/PLAN.md).
 
 ## Development
 
@@ -213,7 +225,7 @@ make check
 
 | Layer | Tooling |
 |---|---|
-| Python (`meetingbot/`, `tests/`) | ruff (lint+format), mypy `--strict`, pytest (216 tests) |
+| Python (`meetingbot/`, `tests/`) | ruff (lint+format), mypy `--strict`, pytest (217 tests) |
 | Swift (`audiocap/`) | swift-format (Apple style), no force-unwraps, modular sources |
 | Extension (`chrome-extension/`) | `tsc --noEmit` with `checkJs` + JSDoc types + chrome-types |
 
