@@ -12,6 +12,14 @@ text is (optionally) summarized via a free API.
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![Swift 5.9](https://img.shields.io/badge/swift-5.9-orange)
 
+## In 30 seconds
+- **What it is:** A Mac app that records your meetings and turns them into written notes, with the audio processed on your own computer.
+- **Why it matters:** Most AI notetakers upload your meeting audio to their servers; this one keeps the recording and transcript on your machine.
+- **Key result:** Released as a downloadable Mac app (v1.0.1) with 217 Python tests; also has a Chrome extension and an iOS app.
+- **What I did:** Solo project: design, Swift audio capture, Python pipeline, Mac app and extension.
+- **Built with:** Python, Swift/SwiftUI, Whisper (on-device speech-to-text), Apple ScreenCaptureKit, NVIDIA NIM (hosted LLM for summaries), Chrome extension.
+- **Try it:** Download MB.dmg from the [latest release](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest), then follow [INSTALL.md](INSTALL.md).
+
 No bot joins your calls. It captures the meeting audio already playing on your Mac
 (any app: Zoom, Meet, Teams, FaceTime, or a browser tab), so it works everywhere and
 needs no meeting-platform integration.
