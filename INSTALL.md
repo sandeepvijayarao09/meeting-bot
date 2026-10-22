@@ -5,10 +5,11 @@ turned into notes, and (optionally) summarized. Nothing is uploaded except the
 transcript *text* when you opt into cloud summaries with your own key.
 
 - **Requirements:** a Mac with **Apple Silicon** (M-series) running **macOS 14 (Sonoma)
-  or later**. ~1 GB free for the app + ~1.5 GB for the Whisper model (downloaded once
-  on first use).
+  or later**. ~165 MB download (~406 MB installed) + ~1.5 GB for the speech model,
+  which you download separately with one click (see
+  [Download the speech model](#2-download-the-speech-model)).
 - **Optional (for AI summaries):** a free **NVIDIA NIM** API key — see
-  [Set your API key](#3-set-your-api-key-optional-for-ai-summaries). Without a key you
+  [Set your API key](#4-set-your-api-key-optional-for-ai-summaries). Without a key you
   still get transcripts, on-device cleanup, and notes.
 
 ---
@@ -46,7 +47,27 @@ transcript *text* when you opt into cloud summaries with your own key.
 > A **notarized** build opens with no warning at all — that needs an Apple Developer ID
 > ($99/yr). See [RELEASE.md](RELEASE.md#ship-a-notarized-download) to produce one.
 
-## 2. Grant permissions (first recording)
+## 2. Download the speech model
+
+Transcription runs on your Mac, which means the speech model has to live on your Mac
+— about 1.5 GB of it. It ships **separately from the app** so the download above stays
+small, and so you are not paying for it before you have decided to keep the app.
+
+In MB: menu bar 🎤 → **Settings…** → **Speech model** → **Download**. It runs once,
+takes a few minutes on a normal connection, and you can close the window while it works.
+The download resumes if it is interrupted.
+
+From the terminal instead:
+
+```bash
+mbot download-model
+```
+
+Do this **before your first meeting**. If you skip it, the model is fetched the moment
+you stop your first recording — which works, but turns a 10-second wait into a multi-minute
+one at exactly the wrong time. `mbot doctor` tells you which state you are in.
+
+## 3. Grant permissions (first recording)
 
 On your first recording macOS asks for two permissions:
 
@@ -58,7 +79,7 @@ On your first recording macOS asks for two permissions:
 After you enable **Screen Recording**, macOS requires you to **quit and reopen MB.app**
 for the grant to take effect. Do that once and you're set.
 
-## 3. Set your API key (optional — for AI summaries)
+## 4. Set your API key (optional — for AI summaries)
 
 Summaries use **your own** free NVIDIA NIM key (nothing is bundled, and your key never
 leaves your machine except in requests to NVIDIA).
@@ -70,7 +91,7 @@ leaves your machine except in requests to NVIDIA).
 No key? The app still records, transcribes, cleans up the transcript, and saves a
 **transcript-only** note — it just skips the AI summary.
 
-## 4. Record & take notes
+## 5. Record & take notes
 
 1. Menu bar 🎤 → **Start Recording** (or open **Meetings…** to browse past notes).
 2. Pick a **Template** (General / Standup / 1:1 / Interview / Sales call) and a
@@ -82,7 +103,7 @@ Everything is click-to-record — nothing runs in the background or auto-joins c
 
 ---
 
-## 5. Connect the Chrome extension (browser-tab meetings)
+## 6. Connect the Chrome extension (browser-tab meetings)
 
 The extension captures a **browser tab's** audio + your mic and streams it to a local
 server on your Mac — useful for Google Meet / Zoom-web / any tab. Audio never leaves
@@ -113,7 +134,7 @@ the note. The extension is keyless — summaries use the server's key from step 
 
 ---
 
-## 6. Command line (optional, power users)
+## 7. Command line (optional, power users)
 
 The bundled `mbot` CLI drives the whole pipeline:
 

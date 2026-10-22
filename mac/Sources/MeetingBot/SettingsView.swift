@@ -9,6 +9,12 @@ final class SettingsModel: ObservableObject {
   @Published var nvidiaKey = ""
   @Published var googleConnected = false
   @Published var status = ""
+  /// nil until the first check comes back, so the UI can stay quiet instead of
+  /// flashing "not downloaded" at someone who has had the model for months.
+  @Published var modelPresent: Bool?
+  @Published var modelBytes: Int64?
+  @Published var modelDownloading = false
+  @Published var modelStatus = ""
 
   private var configDir: URL {
     FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/meetingbot")
@@ -84,6 +90,68 @@ final class SettingsModel: ObservableObject {
     refresh()
     status = "Google disconnected."
   }
+
+  // MARK: - Speech model
+
+  /// Ask the pipeline whether the Whisper model is cached. Cheap (a cache stat, no
+  /// network), so it is safe to call whenever Settings appears.
+  func refreshModel() {
+    guard let mbot = Paths.mbotExecutable() else { return }
+    Task.detached {
+      let process = Process()
+      process.executableURL = mbot
+      process.arguments = ["download-model", "--check"]
+      let pipe = Pipe()
+      process.standardOutput = pipe
+      process.standardError = Pipe()
+      try? process.run()
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      process.waitUntilExit()
+      let present = process.terminationStatus == 0
+      // "present <bytes>" — show the real size rather than the ~1.5 GB estimate.
+      let bytes = String(data: data, encoding: .utf8)?
+        .split(separator: " ").last
+        .flatMap { Int64($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+      await MainActor.run {
+        self.modelPresent = present
+        self.modelBytes = present ? bytes : nil
+      }
+    }
+  }
+
+  /// One-click fetch. Resumable, so a failure here is worth retrying rather than
+  /// starting over; the button simply becomes available again.
+  func downloadModel() {
+    guard let mbot = Paths.mbotExecutable() else {
+      modelStatus = "Pipeline not found — run scripts/install-macos.sh."
+      return
+    }
+    modelDownloading = true
+    modelStatus = "Downloading… this runs once and can take a few minutes."
+    Task.detached {
+      let process = Process()
+      process.executableURL = mbot
+      process.arguments = ["download-model"]
+      let pipe = Pipe()
+      process.standardOutput = pipe
+      process.standardError = pipe
+      try? process.run()
+      let data = pipe.fileHandleForReading.readDataToEndOfFile()
+      process.waitUntilExit()
+      let ok = process.terminationStatus == 0
+      let message =
+        ok
+        ? "Speech model ready. Recordings transcribe immediately from now on."
+        : (String(data: data, encoding: .utf8) ?? "Download failed.")
+          .trimmingCharacters(in: .whitespacesAndNewlines)
+          .components(separatedBy: "\n").last ?? "Download failed."
+      await MainActor.run {
+        self.modelDownloading = false
+        self.modelStatus = message
+        self.refreshModel()
+      }
+    }
+  }
 }
 
 struct SettingsView: View {
@@ -100,6 +168,49 @@ struct SettingsView: View {
     .onAppear {
       access.refresh()
       model.refresh()
+      model.refreshModel()
+    }
+  }
+
+  /// The model is not shipped inside the app — bundling it would add ~1.5 GB to every
+  /// download, including for people who never record. Offering it here means the
+  /// fetch happens once, deliberately, instead of silently during a first meeting.
+  private var modelRow: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack {
+        VStack(alignment: .leading) {
+          Text("On-device transcription")
+          Text(modelSubtitle).font(.caption).foregroundStyle(.secondary)
+        }
+        Spacer()
+        if model.modelDownloading {
+          ProgressView().controlSize(.small)
+        } else if model.modelPresent == false {
+          Button("Download") { model.downloadModel() }
+            .buttonStyle(.borderedProminent)
+        } else if model.modelPresent == true {
+          Text("Ready").font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      if !model.modelStatus.isEmpty {
+        Text(model.modelStatus).font(.caption).foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  private var modelSubtitle: String {
+    if model.modelDownloading { return "Downloading once — you can close this window." }
+    switch model.modelPresent {
+    case .some(true):
+      if let bytes = model.modelBytes, bytes > 0 {
+        let gb = Double(bytes) / 1_000_000_000
+        return String(format: "Cached on this Mac (%.1f GB)", gb)
+      }
+      return "Cached on this Mac"
+    case .some(false):
+      return "One-time ~1.5 GB download. Needed before the first recording."
+    case .none:
+      return "Checking…"
     }
   }
 
@@ -125,6 +236,10 @@ struct SettingsView: View {
         }
         Text("A Markdown copy is always kept locally so search and the Meetings window work.")
           .font(.caption).foregroundStyle(.secondary)
+      }
+
+      Section("Speech model") {
+        modelRow
       }
 
       Section("Summaries & Ask (NVIDIA NIM)") {
