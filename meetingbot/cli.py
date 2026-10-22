@@ -292,6 +292,52 @@ def transcribe_cmd(
     typer.secho(f"✓ {len(turns)} speaker turns in {path / 'transcript.jsonl'}", fg="green")
 
 
+@app.command(name="download-model")
+def download_model_cmd(
+    force: bool = typer.Option(False, "--force", help="Re-download even if already cached"),
+    remove: bool = typer.Option(False, "--remove", help="Delete the cached model instead"),
+    check: bool = typer.Option(
+        False, "--check", help="Report whether the model is present; exit 1 if not"
+    ),
+) -> None:
+    """Download the speech model (~1.5 GB) ahead of the first recording.
+
+    The model ships separately from the app so the download stays small. Running
+    this up front keeps the fetch out of the middle of a meeting.
+    """
+    from . import models
+
+    repo = config.WHISPER_MODEL
+
+    # --check is what the macOS app calls to decide whether to offer the download,
+    # so it must stay cheap: a cache stat, no network.
+    if check:
+        if models.is_downloaded(repo):
+            typer.echo(f"present {models.disk_usage(repo)}")
+            return
+        typer.echo("absent")
+        raise typer.Exit(1)
+
+    if remove:
+        freed = models.remove(repo)
+        typer.secho(f"✓ removed {repo} ({freed / 1e9:.1f} GB reclaimed)", fg="green")
+        return
+
+    if models.is_downloaded(repo) and not force:
+        size = models.disk_usage(repo)
+        typer.secho(f"✓ {repo} already downloaded ({size / 1e9:.1f} GB)", fg="green")
+        return
+
+    typer.secho(f"downloading {repo} — this is a one-time ~1.5 GB fetch…", fg="cyan")
+    try:
+        path = models.download(repo)
+    except Exception as e:
+        typer.secho(f"✗ download failed: {e}", fg="red")
+        typer.echo("    it resumes where it stopped — just run the command again")
+        raise typer.Exit(1) from e
+    typer.secho(f"✓ model ready ({models.disk_usage(repo) / 1e9:.1f} GB) at {path}", fg="green")
+
+
 @app.command(name="refine")
 def refine_cmd(
     session: str = typer.Argument(None, help="Session name/path (default: latest)"),
@@ -460,7 +506,18 @@ def doctor() -> None:
         typer.secho("✗ audiocap binary missing — build it:", fg="red")
         typer.echo("    cd mac && swift build -c release")
 
-    typer.echo(f"  whisper model: {config.WHISPER_MODEL} (downloads on first use)")
+    # The model is not bundled (it would add ~1.5 GB to the download), so whether it
+    # is already cached decides if the first recording transcribes immediately or
+    # stalls on a long fetch. Say which, rather than "downloads on first use".
+    from . import models
+
+    if models.is_downloaded():
+        size = models.disk_usage()
+        typer.secho(f"✓ whisper model: {config.WHISPER_MODEL} ({size / 1e9:.1f} GB)", fg="green")
+    else:
+        ok = False
+        typer.secho(f"✗ whisper model not downloaded: {config.WHISPER_MODEL}", fg="yellow")
+        typer.echo("    one-time ~1.5 GB fetch:  mbot download-model")
 
     # Prompt templates are bundled data in a frozen build; if they did not make it in,
     # every summary would fail at read_text(), so surface it here rather than at runtime.
