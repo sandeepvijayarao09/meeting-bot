@@ -2,7 +2,8 @@
 
 .PHONY: check lint type test swift-build swift-lint swift-test \
         mac-project mac-build ios-project ios-build ios-test \
-        ext-check ext-test ext-package app release-check notarize models clean
+        ext-check ext-test ext-package app release-check notarize models \
+        stats stats-snapshot clean
 
 # Full quality gate. Order matters: swift-build runs before `test` so the
 # `mbot doctor` test finds the freshly built release audiocap binary.
@@ -90,6 +91,17 @@ release-check:
 notarize:
 	@[ -n "$$DEVELOPER_ID" ] || { echo "set DEVELOPER_ID=\"Developer ID Application: NAME (TEAMID)\" — see RELEASE.md"; exit 1; }
 	NOTARY_PROFILE=$${NOTARY_PROFILE:-meetingbot-notary} bash scripts/sign-notarize.sh
+
+# Internal reach dashboard: page views, clones, referrers, and cumulative release
+# download counts, read from what GitHub already records (no analytics added).
+stats:
+	python3 scripts/repo_stats.py
+
+# Same, but also append today's numbers to .stats/history.jsonl — GitHub's traffic
+# window is a rolling 14 days with no backfill, so launch-week data is lost unless
+# it is captured while it is still there.
+stats-snapshot:
+	python3 scripts/repo_stats.py --snapshot
 
 # Benchmark all Whisper model variants (downloads models on first run).
 models:
