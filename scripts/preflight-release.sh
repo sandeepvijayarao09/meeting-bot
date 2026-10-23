@@ -15,12 +15,27 @@ PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="${APP_NAME:-MB}"
 APP="${APP:-$PROJECT/dist/${APP_NAME}.app}"
 
+# Every call below that asks Gatekeeper a question, or runs the bundled sidecar,
+# blocks forever on a quarantined bundle — the exact state of an app dragged out
+# of a freshly downloaded DMG, which is the bundle this gate most needs to audit.
+# A gate that hangs reports nothing, so each of those calls runs under a deadline.
+# shellcheck source=scripts/with-timeout.sh
+source "$(dirname "${BASH_SOURCE[0]}")/with-timeout.sh"
+GATEKEEPER_TIMEOUT="${GATEKEEPER_TIMEOUT:-60}"   # spctl / stapler: assessment + Apple
+SIDECAR_TIMEOUT="${SIDECAR_TIMEOUT:-60}"         # one cold start of the frozen sidecar
+CODESIGN_TIMEOUT="${CODESIGN_TIMEOUT:-300}"      # --deep walks thousands of binaries
+
 FAIL=0
 pass() { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
 hint() { printf '      %s\n' "$1"; }
 head_() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+xattr_fix() { hint "xattr -dr com.apple.quarantine \"$APP\"   # or audit a freshly built bundle"; }
+quarantine_hint() {
+  hint "a quarantined bundle blocks here — Gatekeeper assesses every exec of it"
+  xattr_fix
+}
 
 [ -d "$APP" ] || { echo "✗ no app bundle at $APP — run: EMBED_SIDECAR=1 bash scripts/build-app.sh"; exit 1; }
 echo "Preflight: $APP"
@@ -54,6 +69,13 @@ done
 [ -f "$APP/Contents/Resources/PrivacyInfo.xcprivacy" ] && pass "privacy manifest bundled" \
   || warn "no PrivacyInfo.xcprivacy (required for the App Store, not for Developer ID)"
 
+# Worth saying out loud: it changes what every Gatekeeper check below means, and
+# it is why those checks have deadlines.
+if xattr -p com.apple.quarantine "$APP" >/dev/null 2>&1; then
+  warn "quarantined — downloaded rather than built here, so Gatekeeper gates what follows"
+  xattr_fix
+fi
+
 ARCHS="$(lipo -archs "$APP/Contents/MacOS/$APP_NAME" 2>/dev/null)"
 # MLX is Apple-Silicon only, so arm64-only is deliberate — but it must be stated on
 # the download page, or Intel users get an unexplained "app is not compatible".
@@ -62,12 +84,16 @@ ARCHS="$(lipo -archs "$APP/Contents/MacOS/$APP_NAME" 2>/dev/null)"
 
 # ---------------------------------------------------------------- signing
 head_ "Signature"
-if codesign --verify --deep --strict "$APP" 2>/dev/null; then
-  pass "signature valid (--deep --strict, covers nested code)"
-else
-  fail "codesign --verify --deep --strict failed"
-  codesign --verify --deep --strict "$APP" 2>&1 | sed 's/^/      /' | head -5
-fi
+VERIFY="$(with_timeout "$CODESIGN_TIMEOUT" codesign --verify --deep --strict "$APP" 2>&1)"
+case $? in
+  0) pass "signature valid (--deep --strict, covers nested code)" ;;
+  "$TIMEOUT_STATUS")
+    fail "codesign --verify --deep --strict did not finish in ${CODESIGN_TIMEOUT}s"
+    quarantine_hint ;;
+  *)
+    fail "codesign --verify --deep --strict failed"
+    printf '%s\n' "$VERIFY" | sed 's/^/      /' | head -5 ;;
+esac
 
 INFO="$(codesign -dvv "$APP" 2>&1)"
 AUTHORITY="$(printf '%s' "$INFO" | sed -n 's/^Authority=//p' | head -1)"
@@ -106,6 +132,8 @@ printf '%s' "$ENTS" | grep -q 'com.apple.security.device.audio-input' \
 
 # The notary service rejects any unsigned Mach-O anywhere in the bundle; the sidecar
 # contributes thousands, so verify them rather than trusting the signing loop.
+# No deadline on this loop: `codesign --verify` on a single file reads the
+# signature it already has and never asks Gatekeeper, so it is slow, not stuck.
 head_ "Nested code (this takes a moment)"
 UNSIGNED=0
 TOTAL=0
@@ -122,15 +150,22 @@ done < <(find "$APP/Contents" -type f -print0)
 
 # ---------------------------------------------------------------- notarization
 head_ "Notarization"
-if xcrun stapler validate "$APP" >/dev/null 2>&1; then
-  pass "notarization ticket stapled to the app"
-else
-  fail "no stapled ticket — a Mac with no network cannot verify this app"
-  hint "scripts/sign-notarize.sh notarizes and staples the app before building the DMG"
-fi
+with_timeout "$GATEKEEPER_TIMEOUT" xcrun stapler validate "$APP" >/dev/null 2>&1
+case $? in
+  0) pass "notarization ticket stapled to the app" ;;
+  "$TIMEOUT_STATUS")
+    fail "stapler validate did not finish in ${GATEKEEPER_TIMEOUT}s — ticket state unknown"
+    hint "it reaches Apple when no ticket is stapled; check the network, then re-run" ;;
+  *)
+    fail "no stapled ticket — a Mac with no network cannot verify this app"
+    hint "scripts/sign-notarize.sh notarizes and staples the app before building the DMG" ;;
+esac
 
-SPCTL="$(spctl -a -vvv -t exec "$APP" 2>&1)"
-if printf '%s' "$SPCTL" | grep -q 'accepted'; then
+SPCTL="$(with_timeout "$GATEKEEPER_TIMEOUT" spctl -a -vvv -t exec "$APP" 2>&1)"
+if [ $? -eq "$TIMEOUT_STATUS" ]; then
+  fail "spctl did not answer in ${GATEKEEPER_TIMEOUT}s — Gatekeeper's verdict is unknown"
+  quarantine_hint
+elif printf '%s' "$SPCTL" | grep -q 'accepted'; then
   pass "Gatekeeper accepts the app"
   printf '%s' "$SPCTL" | sed -n 's/^source=/      source: /p'
 else
@@ -142,20 +177,35 @@ fi
 head_ "Bundled sidecar"
 MBOT="$APP/Contents/Resources/mbot"
 if [ -x "$MBOT" ]; then
-  SIDECAR_VERSION="$("$MBOT" --version 2>/dev/null | awk '{print $2}')"
-  [ "$SIDECAR_VERSION" = "$VERSION" ] && pass "sidecar reports $SIDECAR_VERSION" \
-    || fail "sidecar reports '${SIDECAR_VERSION:-nothing}' but the app is $VERSION"
+  # Running the sidecar is where a quarantined bundle used to hang this script
+  # outright: Gatekeeper blocks the nested, ad-hoc-signed binary before it prints
+  # a byte, and nothing ever returns. Each invocation now has a deadline, and a
+  # deadline reached is a reported failure, not a pass.
+  VERSION_OUT="$(with_timeout "$SIDECAR_TIMEOUT" "$MBOT" --version 2>/dev/null)"
+  if [ $? -eq "$TIMEOUT_STATUS" ]; then
+    fail "sidecar did not answer --version in ${SIDECAR_TIMEOUT}s"
+    quarantine_hint
+  else
+    SIDECAR_VERSION="$(printf '%s' "$VERSION_OUT" | awk '{print $2}')"
+    [ "$SIDECAR_VERSION" = "$VERSION" ] && pass "sidecar reports $SIDECAR_VERSION" \
+      || fail "sidecar reports '${SIDECAR_VERSION:-nothing}' but the app is $VERSION"
+  fi
   # The 1.0.0 DMG shipped without prompt templates; every summary raised
   # FileNotFoundError. `doctor` resolves the template, so this is the canary.
-  DOCTOR="$(cd / && "$MBOT" doctor 2>&1)"
-  printf '%s' "$DOCTOR" | grep -q '✓ prompt template' \
-    && pass "prompt templates resolve inside the bundle" \
-    || { fail "prompt template does NOT resolve — summaries will fail"; \
-         printf '%s' "$DOCTOR" | grep -i template | sed 's/^/      /'; }
-  case "$(printf '%s' "$DOCTOR" | sed -n 's/^  notes dir: *//p')" in
-    "$APP"*) fail "notes default inside the app bundle, which is read-only" ;;
-    *) pass "notes default outside the app bundle" ;;
-  esac
+  DOCTOR="$(cd / && with_timeout "$SIDECAR_TIMEOUT" "$MBOT" doctor 2>&1)"
+  if [ $? -eq "$TIMEOUT_STATUS" ]; then
+    fail "sidecar did not finish \`doctor\` in ${SIDECAR_TIMEOUT}s — templates unverified"
+    quarantine_hint
+  else
+    printf '%s' "$DOCTOR" | grep -q '✓ prompt template' \
+      && pass "prompt templates resolve inside the bundle" \
+      || { fail "prompt template does NOT resolve — summaries will fail"; \
+           printf '%s' "$DOCTOR" | grep -i template | sed 's/^/      /'; }
+    case "$(printf '%s' "$DOCTOR" | sed -n 's/^  notes dir: *//p')" in
+      "$APP"*) fail "notes default inside the app bundle, which is read-only" ;;
+      *) pass "notes default outside the app bundle" ;;
+    esac
+  fi
 else
   fail "no mbot sidecar — build with EMBED_SIDECAR=1 or the app cannot transcribe"
 fi
@@ -165,8 +215,12 @@ head_ "Disk image"
 DMG="$PROJECT/dist/${APP_NAME}-${VERSION}-${BUILD}.dmg"
 if [ -f "$DMG" ]; then
   pass "$(basename "$DMG") ($(du -h "$DMG" | awk '{print $1}'))"
-  xcrun stapler validate "$DMG" >/dev/null 2>&1 && pass "notarization ticket stapled to the DMG" \
-    || fail "DMG has no stapled ticket"
+  with_timeout "$GATEKEEPER_TIMEOUT" xcrun stapler validate "$DMG" >/dev/null 2>&1
+  case $? in
+    0) pass "notarization ticket stapled to the DMG" ;;
+    "$TIMEOUT_STATUS") fail "stapler validate on the DMG did not finish in ${GATEKEEPER_TIMEOUT}s" ;;
+    *) fail "DMG has no stapled ticket" ;;
+  esac
 else
   warn "no DMG for this exact build — run: bash scripts/build-dmg.sh"
 fi
