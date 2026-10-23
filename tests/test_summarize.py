@@ -1,6 +1,6 @@
 import pytest
 
-from meetingbot import config, summarize
+from meetingbot import config, llm, summarize
 
 
 class TestTemplateFill:
@@ -29,43 +29,36 @@ class TestSplit:
         assert summarize._split_on_lines("hello\n", 1000) == ["hello\n"]
 
 
-class TestApiKeyHandling:
-    def test_no_key_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "")
+class TestBackendAvailability:
+    """`have_key` is the gate that decides transcript-only vs summarized notes."""
+
+    def test_unavailable_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "")
         assert not summarize.have_key()
-        with pytest.raises(summarize.MissingAPIKeyError, match=r"build\.nvidia\.com"):
+        with pytest.raises(summarize.MissingAPIKeyError, match="cloud backend"):
             summarize.summarize_meeting("transcript")
 
-    def test_have_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+    def test_available_with_cloud_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         assert summarize.have_key()
 
-    def test_client_bounds_request_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # A slow NIM must not hang Stop→"Processing…" for the SDK's 600s default: the
-        # client is built with the configured (bounded) timeout.
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
-        monkeypatch.setattr(config, "NIM_TIMEOUT", 42.0)
-        client = summarize._client()
-        assert client.timeout == 42.0
-        assert client.max_retries == 1
+    def test_local_availability_tracks_the_downloaded_model(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """On-device needs no key — only the weights."""
+        monkeypatch.setattr(config, "LLM_BACKEND", "local")
+        monkeypatch.setattr(config, "LLM_API_KEY", "")
+        monkeypatch.setattr(llm, "local_model_ready", lambda: True)
+        assert summarize.have_key()
+        monkeypatch.setattr(llm, "local_model_ready", lambda: False)
+        assert not summarize.have_key()
 
-
-class TestReasoningKwargs:
-    def test_gpt_oss_gets_low_effort(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(config, "NIM_MODEL", "openai/gpt-oss-120b")
-        monkeypatch.setattr(config, "NIM_REASONING", "low")
-        assert summarize._reasoning_kwargs() == {"reasoning_effort": "low"}
-
-    def test_non_reasoning_model_omits_param(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # llama-3.3-70b rejects reasoning_effort, so it must not be sent.
-        monkeypatch.setattr(config, "NIM_MODEL", "meta/llama-3.3-70b-instruct")
-        monkeypatch.setattr(config, "NIM_REASONING", "low")
-        assert summarize._reasoning_kwargs() == {}
-
-    def test_none_disables_even_for_gpt_oss(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(config, "NIM_MODEL", "openai/gpt-oss-120b")
-        monkeypatch.setattr(config, "NIM_REASONING", "none")
-        assert summarize._reasoning_kwargs() == {}
+    def test_disabled_backend_is_never_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(config, "LLM_BACKEND", "none")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
+        assert not summarize.have_key()
 
 
 class TestGenerateTitle:

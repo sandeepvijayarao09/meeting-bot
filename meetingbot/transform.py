@@ -41,8 +41,8 @@ def transform(text: str, kind: str) -> str:
         raise ValueError(f"unknown transform {kind!r}; choose from {', '.join(TRANSFORMS)}")
     if not summarize.have_key():
         raise summarize.MissingAPIKeyError(
-            "NVIDIA_API_KEY is not set. Get a free key at https://build.nvidia.com "
-            "and put it in ~/.config/meetingbot/.env"
+            "No LLM backend is ready. Fetch the on-device model once with: "
+            "mbot download-model --llm"
         )
     text = summarize.condense_if_long(text)
     prompt = summarize._fill(_template_path(kind).read_text(), TEXT=text)

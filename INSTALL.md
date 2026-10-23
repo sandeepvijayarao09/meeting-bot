@@ -8,9 +8,9 @@ transcript *text* when you opt into cloud summaries with your own key.
   or later**. ~165 MB download (~406 MB installed) + ~1.5 GB for the speech model,
   which you download separately with one click (see
   [Download the speech model](#2-download-the-speech-model)).
-- **Optional (for AI summaries):** a free **NVIDIA NIM** API key — see
-  [Set your API key](#4-set-your-api-key-optional-for-ai-summaries). Without a key you
-  still get transcripts, on-device cleanup, and notes.
+- **For AI summaries:** a second on-device model (~5 GB), downloaded with one click — see
+  [Download the summary model](#4-download-the-summary-model). Skip it and you still
+  get transcripts, on-device cleanup, and notes. No API key is needed either way.
 
 ---
 
@@ -79,17 +79,30 @@ On your first recording macOS asks for two permissions:
 After you enable **Screen Recording**, macOS requires you to **quit and reopen MB.app**
 for the grant to take effect. Do that once and you're set.
 
-## 4. Set your API key (optional — for AI summaries)
+## 4. Download the summary model
 
-Summaries use **your own** free NVIDIA NIM key (nothing is bundled, and your key never
-leaves your machine except in requests to NVIDIA).
+Summaries are written by **Gemma 4 running on your Mac** — no account, no key, and
+the transcript never leaves the device.
 
-1. Get a free key at **https://build.nvidia.com**.
-2. In MB: menu bar 🎤 → **Settings… → API key** → paste → save.
-   (This writes `~/.config/meetingbot/.env`, shared with the CLI and the extension.)
+In MB: menu bar 🎤 → **Settings… → Summaries & Ask → Download**. One-time ~5 GB, on
+top of the speech model. From the terminal instead:
 
-No key? The app still records, transcribes, cleans up the transcript, and saves a
-**transcript-only** note — it just skips the AI summary.
+```bash
+mbot download-model --llm
+```
+
+Skip it and the app still records, transcribes, cleans up the transcript, and saves a
+**transcript-only** note — it just leaves the summary blank until you run
+`mbot summarize` later.
+
+<details><summary>Prefer a cloud model?</summary>
+
+On-device summaries are slower than a hosted model, and Gemma 4 E4B is a ~4B-class
+model rather than a frontier one. If you would rather trade privacy for quality, set
+`MBOT_LLM_BACKEND=cloud` with your own key and any OpenAI-compatible endpoint
+(Settings ▸ Summaries & Ask ▸ *Use a cloud model instead*). Transcript **text** then
+leaves your Mac for that provider; audio never does either way.
+</details>
 
 ## 5. Record & take notes
 
@@ -139,7 +152,7 @@ the note. The extension is keyless — summaries use the server's key from step 
 The bundled `mbot` CLI drives the whole pipeline:
 
 ```bash
-mbot set-key                 # store your NVIDIA NIM key
+mbot download-model --llm    # on-device summary model (~5 GB)
 mbot record                  # record from the terminal
 mbot process <session-dir>   # transcribe + summarize + export a finished session
 mbot transcribe <dir>        # transcript only
@@ -157,7 +170,7 @@ mbot --version               # version (quote it in bug reports)
 
 Audio is captured and transcribed **entirely on your device**. The only thing that can
 leave your Mac is the transcript *text*, and only when you've set a key and a summary
-runs (sent to NVIDIA, not retained by this app). See [PRIVACY.md](PRIVACY.md). A fully
+runs on your Mac by default. See [PRIVACY.md](PRIVACY.md). A fully
 offline, on-device summary path (Gemma via LiteRT-LM) is opt-in and on the roadmap —
 see [docs/on-device-llm.md](docs/on-device-llm.md).
 

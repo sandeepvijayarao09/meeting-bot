@@ -12,6 +12,7 @@ from pathlib import Path
 import typer
 
 from . import __version__, config, notes, recorder, summarize
+from . import llm as llm_mod
 
 app = typer.Typer(help="Local Granola-style meeting notetaker.", no_args_is_help=True)
 
@@ -98,12 +99,12 @@ def record(
     typer.secho("\nStopping — finishing transcription…", fg="cyan")
     rec.stop()
     if not no_summary and summarize.have_key():
-        typer.secho("Summarizing via NVIDIA NIM…", fg="cyan")
+        typer.secho(f"Summarizing with {llm_mod.describe()}…", fg="cyan")
     note_path, summarized = rec.finalize(want_summary=not no_summary)
     typer.secho(f"✓ Note: {note_path}", fg="green", bold=True)
     if not summarized and not no_summary:
         typer.secho(
-            "  (no NVIDIA_API_KEY yet — transcript saved; run `mbot summarize` later)",
+            "  (no LLM backend ready — transcript saved; run `mbot summarize` later)",
             fg="yellow",
         )
 
@@ -209,34 +210,37 @@ def auth_google() -> None:
 @app.command(name="set-key")
 def set_key(
     key: str = typer.Argument(
-        None, help='Your NVIDIA NIM API key (nvapi-…). Omit to be prompted; pass "" to clear.'
+        None, help='API key for the cloud backend. Omit to be prompted; pass "" to clear.'
     ),
 ) -> None:
-    """Save your own NVIDIA NIM API key for summaries + Ask (bring-your-own-key).
+    """Save an API key for the *cloud* LLM backend (bring-your-own-key).
 
-    Get a free key at https://build.nvidia.com. Stored locally in
-    ~/.config/meetingbot/.env — the same key the macOS app reads, never sent anywhere
-    but NVIDIA when you summarize.
+    Only needed with MBOT_LLM_BACKEND=cloud. The default backend runs Gemma 4 on
+    device, needs no key, and sends nothing anywhere — see `mbot download-model --llm`.
+
+    Stored locally in ~/.config/meetingbot/.env, owner-readable only; the same file
+    the macOS app reads.
     """
     if key is None:
-        key = typer.prompt("NVIDIA NIM API key (nvapi-…)", hide_input=True)
+        key = typer.prompt("API key for the cloud LLM backend", hide_input=True)
     key = key.strip()
     env_file = config.CONFIG_DIR / ".env"
     config.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     config.CONFIG_DIR.chmod(0o700)  # secrets dir: owner-only
-    # Upsert NVIDIA_API_KEY, preserving any other lines (mirrors the macOS Settings pane).
+    # Upsert the key, preserving any other lines (mirrors the macOS Settings pane).
     lines = [
         ln
         for ln in (env_file.read_text().splitlines() if env_file.exists() else [])
-        if not ln.startswith("NVIDIA_API_KEY=")
+        if not ln.startswith("MBOT_LLM_API_KEY=")
     ]
     if key:
-        lines.append(f"NVIDIA_API_KEY={key}")
+        lines.append(f"MBOT_LLM_API_KEY={key}")
     env_file.write_text("\n".join(lines) + ("\n" if lines else ""))
     env_file.chmod(0o600)  # holds an API key: readable only by the owner
     if key:
         masked = f"{key[:6]}…{key[-4:]}" if len(key) > 12 else "set"
         typer.secho(f"✓ key saved ({masked}) → {env_file}", fg="green", bold=True)
+        typer.echo("    active only while MBOT_LLM_BACKEND=cloud")
     else:
         typer.secho("✓ key cleared.", fg="yellow")
 
@@ -299,15 +303,19 @@ def download_model_cmd(
     check: bool = typer.Option(
         False, "--check", help="Report whether the model is present; exit 1 if not"
     ),
+    llm: bool = typer.Option(
+        False, "--llm", help="Act on the on-device Gemma model instead of the speech model"
+    ),
 ) -> None:
-    """Download the speech model (~1.5 GB) ahead of the first recording.
+    """Download a model ahead of time, so the fetch never lands mid-meeting.
 
-    The model ships separately from the app so the download stays small. Running
-    this up front keeps the fetch out of the middle of a meeting.
+    Two separate models, neither bundled (that is what keeps the app download small):
+    the speech model (~1.5 GB, default) and, with `--llm`, the on-device Gemma 4
+    that writes the summaries (~5 GB).
     """
     from . import models
 
-    repo = config.WHISPER_MODEL
+    repo = config.GEMMA_MODEL if llm else config.WHISPER_MODEL
 
     # --check is what the macOS app calls to decide whether to offer the download,
     # so it must stay cheap: a cache stat, no network.
@@ -328,7 +336,8 @@ def download_model_cmd(
         typer.secho(f"✓ {repo} already downloaded ({size / 1e9:.1f} GB)", fg="green")
         return
 
-    typer.secho(f"downloading {repo} — this is a one-time ~1.5 GB fetch…", fg="cyan")
+    approx = "~5 GB" if llm else "~1.5 GB"
+    typer.secho(f"downloading {repo} — this is a one-time {approx} fetch…", fg="cyan")
     try:
         path = models.download(repo)
     except Exception as e:
@@ -528,17 +537,25 @@ def doctor() -> None:
         ok = False
         typer.secho(f"✗ prompt template missing: {template}", fg="red")
 
-    if summarize.have_key():
+    from . import llm
+
+    if llm.is_available():
         try:
-            summarize.ping()
-            typer.secho(f"✓ NVIDIA NIM reachable ({config.NIM_MODEL})", fg="green")
-        except Exception as e:  # surface auth/network problems directly
+            llm.ping()
+            typer.secho(f"✓ LLM backend: {llm.describe()}", fg="green")
+        except Exception as e:  # surface load/network problems directly
             ok = False
-            typer.secho(f"✗ NIM error: {e}", fg="red")
+            typer.secho(f"✗ LLM backend error ({llm.describe()}): {e}", fg="red")
+    elif config.LLM_BACKEND == "none":
+        typer.echo("  LLM backend: disabled — transcript-only notes")
+    elif config.LLM_BACKEND == "cloud":
+        ok = False
+        typer.secho("✗ cloud backend selected but MBOT_LLM_API_KEY is not set", fg="yellow")
+        typer.echo("    or switch to on-device:  MBOT_LLM_BACKEND=local")
     else:
         ok = False
-        typer.secho("✗ NVIDIA_API_KEY not set", fg="yellow")
-        typer.echo("    free key: https://build.nvidia.com → ~/.config/meetingbot/.env")
+        typer.secho(f"✗ {config.GEMMA_MODEL} not downloaded", fg="yellow")
+        typer.echo("    one-time on-device model fetch:  mbot download-model --llm")
 
     from . import exporters
 

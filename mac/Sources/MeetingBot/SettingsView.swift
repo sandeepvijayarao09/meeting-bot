@@ -3,10 +3,11 @@ import Foundation
 import SwiftUI
 
 /// Reads/writes the bits of configuration the app can own on the user's behalf:
-/// the NVIDIA key (in ~/.config/meetingbot/.env) and Google connection state.
+/// the optional cloud API key (in ~/.config/meetingbot/.env), the on-device model
+/// state, and Google connection state.
 @MainActor
 final class SettingsModel: ObservableObject {
-  @Published var nvidiaKey = ""
+  @Published var apiKey = ""
   @Published var googleConnected = false
   @Published var status = ""
   /// nil until the first check comes back, so the UI can stay quiet instead of
@@ -15,6 +16,10 @@ final class SettingsModel: ObservableObject {
   @Published var modelBytes: Int64?
   @Published var modelDownloading = false
   @Published var modelStatus = ""
+  @Published var llmPresent: Bool?
+  @Published var llmBytes: Int64?
+  @Published var llmDownloading = false
+  @Published var llmStatus = ""
 
   private var configDir: URL {
     FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/meetingbot")
@@ -23,15 +28,18 @@ final class SettingsModel: ObservableObject {
   private var googleToken: URL { configDir.appendingPathComponent("google_token.json") }
 
   func refresh() {
-    nvidiaKey = readEnv("NVIDIA_API_KEY") ?? ""
+    apiKey = readEnv("MBOT_LLM_API_KEY") ?? ""
     googleConnected = FileManager.default.fileExists(atPath: googleToken.path)
   }
 
-  // MARK: - NVIDIA key
+  // MARK: - Cloud backend key (optional)
 
-  func saveNvidiaKey() {
-    upsertEnv("NVIDIA_API_KEY", nvidiaKey.trimmingCharacters(in: .whitespacesAndNewlines))
-    status = nvidiaKey.isEmpty ? "Key cleared." : "Key saved. Summaries & Ask are enabled."
+  func saveAPIKey() {
+    upsertEnv("MBOT_LLM_API_KEY", apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
+    status =
+      apiKey.isEmpty
+      ? "Key cleared."
+      : "Key saved — used only when the cloud backend is selected."
   }
 
   private func readEnv(_ key: String) -> String? {
@@ -93,34 +101,90 @@ final class SettingsModel: ObservableObject {
 
   // MARK: - Speech model
 
+  /// Ask the pipeline whether the Gemma model is cached, and mirror it into the
+  /// LLM row. Same cheap `--check` call, with `--llm`.
+  func refreshLLM() {
+    guard let mbot = Paths.mbotExecutable() else { return }
+    Task.detached {
+      let (present, bytes) = await Self.checkModel(mbot: mbot, llm: true)
+      await MainActor.run {
+        self.llmPresent = present
+        self.llmBytes = bytes
+      }
+    }
+  }
+
+  /// One-click fetch of the on-device summarizer (~5 GB). Resumable.
+  func downloadLLM() {
+    guard let mbot = Paths.mbotExecutable() else {
+      llmStatus = "Pipeline not found — run scripts/install-macos.sh."
+      return
+    }
+    llmDownloading = true
+    llmStatus = "Downloading… this runs once and can take a while."
+    Task.detached {
+      let message = await Self.runDownload(mbot: mbot, llm: true)
+      await MainActor.run {
+        self.llmDownloading = false
+        self.llmStatus = message
+        self.refreshLLM()
+      }
+    }
+  }
+
+  /// Shared `download-model --check`: returns (present, bytes-on-disk).
+  static func checkModel(mbot: URL, llm: Bool) async -> (Bool, Int64?) {
+    let process = Process()
+    process.executableURL = mbot
+    process.arguments = ["download-model", "--check"] + (llm ? ["--llm"] : [])
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = Pipe()
+    try? process.run()
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    let bytes = String(data: data, encoding: .utf8)?
+      .split(separator: " ").last
+      .flatMap { Int64($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    return (process.terminationStatus == 0, bytes)
+  }
+
+  /// Shared `download-model`: returns the line to show the user.
+  static func runDownload(mbot: URL, llm: Bool) async -> String {
+    let process = Process()
+    process.executableURL = mbot
+    process.arguments = ["download-model"] + (llm ? ["--llm"] : [])
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = pipe
+    try? process.run()
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    if process.terminationStatus == 0 {
+      return llm
+        ? "Summaries now run on this Mac."
+        : "Speech model ready. Recordings transcribe immediately from now on."
+    }
+    return (String(data: data, encoding: .utf8) ?? "Download failed.")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .components(separatedBy: "\n").last ?? "Download failed."
+  }
+
   /// Ask the pipeline whether the Whisper model is cached. Cheap (a cache stat, no
   /// network), so it is safe to call whenever Settings appears.
   func refreshModel() {
     guard let mbot = Paths.mbotExecutable() else { return }
     Task.detached {
-      let process = Process()
-      process.executableURL = mbot
-      process.arguments = ["download-model", "--check"]
-      let pipe = Pipe()
-      process.standardOutput = pipe
-      process.standardError = Pipe()
-      try? process.run()
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      process.waitUntilExit()
-      let present = process.terminationStatus == 0
-      // "present <bytes>" — show the real size rather than the ~1.5 GB estimate.
-      let bytes = String(data: data, encoding: .utf8)?
-        .split(separator: " ").last
-        .flatMap { Int64($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+      let (present, bytes) = await Self.checkModel(mbot: mbot, llm: false)
       await MainActor.run {
         self.modelPresent = present
-        self.modelBytes = present ? bytes : nil
+        self.modelBytes = bytes
       }
     }
   }
 
-  /// One-click fetch. Resumable, so a failure here is worth retrying rather than
-  /// starting over; the button simply becomes available again.
+  /// One-click fetch of the speech model. Resumable, so a failure is worth
+  /// retrying rather than restarting; the button simply becomes available again.
   func downloadModel() {
     guard let mbot = Paths.mbotExecutable() else {
       modelStatus = "Pipeline not found — run scripts/install-macos.sh."
@@ -129,22 +193,7 @@ final class SettingsModel: ObservableObject {
     modelDownloading = true
     modelStatus = "Downloading… this runs once and can take a few minutes."
     Task.detached {
-      let process = Process()
-      process.executableURL = mbot
-      process.arguments = ["download-model"]
-      let pipe = Pipe()
-      process.standardOutput = pipe
-      process.standardError = pipe
-      try? process.run()
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      process.waitUntilExit()
-      let ok = process.terminationStatus == 0
-      let message =
-        ok
-        ? "Speech model ready. Recordings transcribe immediately from now on."
-        : (String(data: data, encoding: .utf8) ?? "Download failed.")
-          .trimmingCharacters(in: .whitespacesAndNewlines)
-          .components(separatedBy: "\n").last ?? "Download failed."
+      let message = await Self.runDownload(mbot: mbot, llm: false)
       await MainActor.run {
         self.modelDownloading = false
         self.modelStatus = message
@@ -169,6 +218,7 @@ struct SettingsView: View {
       access.refresh()
       model.refresh()
       model.refreshModel()
+      model.refreshLLM()
     }
   }
 
@@ -214,6 +264,47 @@ struct SettingsView: View {
     }
   }
 
+  /// The summarizer model. Same contract as the speech model: not bundled, fetched
+  /// once on request, so the app download stays small and nothing runs until asked.
+  private var llmModelRow: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack {
+        VStack(alignment: .leading) {
+          Text("On-device summaries (Gemma 4)")
+          Text(llmSubtitle).font(.caption).foregroundStyle(.secondary)
+        }
+        Spacer()
+        if model.llmDownloading {
+          ProgressView().controlSize(.small)
+        } else if model.llmPresent == false {
+          Button("Download") { model.downloadLLM() }
+            .buttonStyle(.borderedProminent)
+        } else if model.llmPresent == true {
+          Text("Ready").font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      if !model.llmStatus.isEmpty {
+        Text(model.llmStatus).font(.caption).foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  private var llmSubtitle: String {
+    if model.llmDownloading { return "Downloading once — you can close this window." }
+    switch model.llmPresent {
+    case .some(true):
+      if let bytes = model.llmBytes, bytes > 0 {
+        let gb = Double(bytes) / 1_000_000_000
+        return String(format: "Runs on this Mac (%.1f GB). No key, nothing uploaded.", gb)
+      }
+      return "Runs on this Mac. No key, nothing uploaded."
+    case .some(false):
+      return "One-time ~5 GB download. Without it, notes are transcript-only."
+    case .none:
+      return "Checking…"
+    }
+  }
+
   // MARK: - General (saving + integrations)
 
   private var generalTab: some View {
@@ -242,12 +333,16 @@ struct SettingsView: View {
         modelRow
       }
 
-      Section("Summaries & Ask (NVIDIA NIM)") {
-        SecureField("API key (nvapi-…)", text: $model.nvidiaKey)
-        HStack {
-          Button("Save Key") { model.saveNvidiaKey() }
-          Link("Get a free key", destination: URL(string: "https://build.nvidia.com")!)
-            .font(.caption)
+      Section("Summaries & Ask") {
+        llmModelRow
+        DisclosureGroup("Use a cloud model instead") {
+          Text(
+            "Sends finished transcript text to an OpenAI-compatible endpoint. "
+              + "Faster and stronger than on-device, but the text leaves your Mac."
+          )
+          .font(.caption).foregroundStyle(.secondary)
+          SecureField("API key", text: $model.apiKey)
+          Button("Save Key") { model.saveAPIKey() }
         }
       }
 

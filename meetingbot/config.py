@@ -65,20 +65,40 @@ VOCAB = os.environ.get("MBOT_VOCAB", "").strip()
 #   off   — raw Whisper transcript, no cleanup (legacy behavior)
 #   local — deterministic on-device cleanup (strip fillers, collapse false starts
 #           and repetitions, fix punctuation/capitalization). $0, offline, default.
-#   cloud — local cleanup THEN an NIM polish pass; falls back to local if the key
-#           is missing or the request fails. Opt-in (spends credits per meeting).
+#   cloud — local cleanup THEN an LLM polish pass; falls back to local if the
+#           backend is unavailable or the request fails. Opt-in.
 REFINE = os.environ.get("MBOT_REFINE", "local").strip().lower()
 
-NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
-NIM_BASE_URL = os.environ.get("MBOT_NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
-NIM_MODEL = os.environ.get("MBOT_NIM_MODEL", "openai/gpt-oss-120b")
-# Reasoning effort for reasoning models (gpt-oss). "low" is ~40% faster and
-# cheaper than the default for note-taking with equal quality; "none" disables.
-NIM_REASONING = os.environ.get("MBOT_NIM_REASONING", "low").strip().lower()
-# Per-request timeout (seconds) for NIM calls. The OpenAI SDK defaults to 600s, which
-# lets a slow/unresponsive API hang the app's Stop→"Processing…" for up to 10 minutes;
-# bound it so summarization fails fast (and the note falls back to transcript-only).
-NIM_TIMEOUT = float(os.environ.get("MBOT_NIM_TIMEOUT", "90"))
+# Which backend generates summaries, Ask answers, refinement and transforms:
+#   local — Gemma 4 on device via MLX. No key, no network, nothing leaves the Mac.
+#           The default: it is the only option consistent with the product's claim.
+#   cloud — any OpenAI-compatible endpoint (base URL + key + model). Deliberately
+#           vendor-neutral; point it at Google AI Studio, a self-hosted server, or
+#           `mlx_lm.server`. Faster and stronger than on-device, but it sends
+#           finished transcript text off the machine.
+#   none  — no generation at all: transcript-only notes, fully deterministic.
+LLM_BACKEND = os.environ.get("MBOT_LLM_BACKEND", "local").strip().lower()
+
+# The on-device model. E4B is Gemma 4's edge variant (~4B active parameters);
+# E2B is smaller and faster if 5 GB is too much. Not bundled — `mbot download-model
+# --llm` fetches it once into the Hugging Face cache.
+GEMMA_MODEL = os.environ.get("MBOT_GEMMA_MODEL", "mlx-community/gemma-4-e4b-it-4bit")
+# Gemma 4 reasons before answering, and those tokens come out of the same budget as
+# the answer. Without headroom a long summary gets truncated mid-thought and nothing
+# usable survives the strip. Generous by default; lower it to trade quality for speed.
+GEMMA_THINKING_HEADROOM = int(os.environ.get("MBOT_GEMMA_THINKING_HEADROOM", "2048"))
+
+# Cloud backend settings. No vendor is hard-coded and no key is bundled; these are
+# inert unless MBOT_LLM_BACKEND=cloud.
+LLM_API_KEY = os.environ.get("MBOT_LLM_API_KEY", "").strip()
+LLM_BASE_URL = os.environ.get(
+    "MBOT_LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"
+)
+LLM_MODEL = os.environ.get("MBOT_LLM_MODEL", "gemma-4-e4b-it")
+# Per-request timeout (seconds). The OpenAI SDK defaults to 600s, which lets a slow
+# endpoint hang the app's Stop→"Processing…" for ten minutes; bound it so a summary
+# fails fast and the note falls back to transcript-only.
+LLM_TIMEOUT = float(os.environ.get("MBOT_LLM_TIMEOUT", "90"))
 
 PROMPTS_DIR = RESOURCE_ROOT / "prompts"
 PROMPT_TEMPLATE = PROMPTS_DIR / "meeting_summary.md"  # default / general

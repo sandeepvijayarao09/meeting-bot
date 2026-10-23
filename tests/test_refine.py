@@ -131,7 +131,8 @@ class TestRefineTranscript:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _write_transcript(tmp_path, _SEGMENTS)
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         seen: list[str] = []
 
         def fake_complete(system: str, user: str, **k: object) -> str:
@@ -147,7 +148,8 @@ class TestRefineTranscript:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _write_transcript(tmp_path, _SEGMENTS)
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "")
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "")
 
         def boom(*a: object, **k: object) -> str:
             raise AssertionError("must not call the cloud without a key")
@@ -161,7 +163,8 @@ class TestRefineTranscript:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _write_transcript(tmp_path, _SEGMENTS)
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
 
         def boom(*a: object, **k: object) -> str:
             raise RuntimeError("network down")

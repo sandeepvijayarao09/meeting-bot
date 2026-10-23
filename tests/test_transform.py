@@ -9,8 +9,9 @@ class TestTransformValidation:
             transform.transform("text", "nonsense")
 
     def test_no_key_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "")
-        with pytest.raises(summarize.MissingAPIKeyError, match=r"build\.nvidia\.com"):
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "")
+        with pytest.raises(summarize.MissingAPIKeyError, match="LLM backend"):
             transform.transform("text", "short")
 
 
@@ -23,7 +24,8 @@ class TestTransformTemplates:
 
     @pytest.mark.parametrize("kind", transform.TRANSFORMS)
     def test_fills_template_with_source(self, kind: str, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         seen: list[str] = []
 
         def fake_complete(system: str, user: str, **k: object) -> str:
@@ -40,7 +42,8 @@ class TestTransformMapReduce:
     def test_long_input_condenses_before_transforming(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "MAX_DIRECT_CHARS", 100)
         monkeypatch.setattr(summarize, "PIECE_CHARS", 60)
         calls: list[str] = []

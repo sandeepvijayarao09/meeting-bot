@@ -17,7 +17,10 @@ def isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(config, "DB_PATH", data / "index.db")
     monkeypatch.setattr(config, "CURRENT_FILE", data / "current.json")
     monkeypatch.setattr(config, "USAGE_LOG", data / "usage.log")
-    monkeypatch.setattr(config, "NVIDIA_API_KEY", "")
+    # Deterministic, offline default: the cloud backend with no key is "unavailable"
+    # without stat-ing the real model cache, which "local" would.
+    monkeypatch.setattr(config, "LLM_BACKEND", "cloud")
+    monkeypatch.setattr(config, "LLM_API_KEY", "")
     # Keep tests off the real ~/.config Google credentials.
     monkeypatch.setattr(config, "GOOGLE_TOKEN", data / "google_token.json")
     monkeypatch.setattr(config, "GOOGLE_CLIENT_SECRETS", data / "google_client_secret.json")

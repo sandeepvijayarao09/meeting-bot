@@ -7,6 +7,34 @@ All notable changes to this project are documented here. The format is based on
 ## [Unreleased]
 
 ### Changed
+- **Summaries, Ask, refinement and transforms now run on device via Gemma 4; NVIDIA
+  NIM is gone.** The product's claim was that a meeting never leaves your Mac, and
+  the summary step was the one place that leaked — finished transcript text went to
+  NVIDIA's cloud, and you needed an account and an API key before the app was much
+  use. Generation now happens locally through MLX, which was already bundled for
+  Whisper, so the marginal cost is ~75 MB of tokenizer dependencies rather than a
+  new runtime.
+
+  - New `meetingbot/llm.py` is the single seam; `summarize.complete()` delegates to
+    it, so all four consumers changed in one place.
+  - `MBOT_LLM_BACKEND` selects `local` (default, Gemma 4 E4B via MLX), `cloud` (any
+    OpenAI-compatible endpoint — vendor-neutral, no provider hard-coded) or `none`
+    (transcript-only notes).
+  - `NVIDIA_API_KEY` → `MBOT_LLM_API_KEY`, and it is now only consulted for the cloud
+    backend. `MBOT_NIM_*` → `MBOT_LLM_*`. Swift's `NIMProvider` → `OpenAICompatProvider`.
+  - The gpt-oss `reasoning_effort` shim is deleted; it was specific to the model being
+    dropped.
+
+  **Two honest trade-offs.** Gemma 4 E4B is a ~4B-class model where gpt-oss-120b was
+  120B, so summaries of long multi-topic meetings will be weaker; and on-device
+  generation is slower than a datacenter. In exchange there is no key, no account, no
+  per-meeting cost, and nothing to disclose in a privacy policy. `MBOT_LLM_BACKEND=cloud`
+  remains for anyone who wants the other side of that trade.
+
+  iOS deliberately keeps the cloud backend: the on-device build is ~5 GB, which is not
+  a reasonable footprint on most iPhones.
+
+### Changed (packaging)
 - **The macOS download is 47% smaller: 312 MB → 164 MB (861 MB → 406 MB installed.)**
   PyInstaller resolves imports statically, so it was bundling everything *reachable*
   rather than everything *reached*. Removed, after verifying each is unreachable:
@@ -23,6 +51,15 @@ All notable changes to this project are documented here. The format is based on
   bundle and breaks transcription. Tests pin both halves of that decision.
 
 ### Fixed
+- **Gemma 4's chain of thought leaked into every note.** The model reasons out loud
+  inside `<|channel>…<channel|>` tokens before answering. Unstripped, that block was
+  written verbatim into the user's note, and `generate_title` turned its first line
+  into the title *and* the filename — the first real summary produced
+  `2026-10-22-2308-channel-thought.md` titled `<|channel>thought`. Reasoning measurably
+  improves the summaries, so it stays on and is now stripped from the output, with
+  token headroom (`MBOT_GEMMA_THINKING_HEADROOM`) so the answer is not truncated by
+  the thinking that precedes it. No unit test could have caught this; it took running
+  a real meeting through the real model.
 - **The frozen sidecar printed two bogus usage errors and killed its semaphore
   tracker on every transcription.** In a PyInstaller build `sys.executable` is the
   `mbot` binary, so when multiprocessing started a child it re-ran `mbot` with
@@ -34,6 +71,9 @@ All notable changes to this project are documented here. The format is based on
   no automated test does.
 
 ### Added
+- **`mbot download-model --llm`** and a **Download button in Settings ▸ Summaries &
+  Ask** — the ~5 GB Gemma model is fetched on request, never bundled, so the app
+  download stays at 164 MB.
 - **`mbot download-model`** and a **Download button in Settings ▸ Speech model** —
   the ~1.5 GB speech model is not bundled, and previously it was fetched implicitly
   the first time anything transcribed. That put a multi-minute download in the middle

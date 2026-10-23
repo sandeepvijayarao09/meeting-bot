@@ -9,8 +9,9 @@ from typing import Any
 from . import config
 
 PLACEHOLDER_SUMMARY = (
-    "_Not summarized yet — set NVIDIA_API_KEY (free key from https://build.nvidia.com) "
-    "and run `mbot summarize` to generate notes from the transcript below._"
+    "_Not summarized yet — set up an LLM backend (`mbot download-model --llm` fetches "
+    "the on-device one), then run `mbot summarize` to generate notes from the "
+    "transcript below._"
 )
 
 

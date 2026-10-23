@@ -92,7 +92,7 @@ struct SettingsView: View {
     NavigationStack {
       Form {
         Section("Summaries (cloud fallback)") {
-          SecureField("NVIDIA NIM API key", text: $secrets.nimKey)
+          SecureField("Gemma API key", text: $secrets.nimKey)
           Text(
             "Used only when on-device Gemma isn't available. Transcript text only — audio never "
               + "leaves your device. Free key at build.nvidia.com."

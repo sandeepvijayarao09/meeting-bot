@@ -12,7 +12,7 @@ def _note(title: str, date: str, summary: str, transcript: str) -> None:
 class TestAsk:
     def test_no_key_raises(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(summarize, "have_key", lambda: False)
-        with pytest.raises(summarize.MissingAPIKeyError, match="NVIDIA"):
+        with pytest.raises(summarize.MissingAPIKeyError, match="LLM backend"):
             ask.ask("anything")
 
     def test_no_matches_returns_gracefully(

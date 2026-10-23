@@ -211,7 +211,7 @@ final class RecordingController: ObservableObject {
     // without it (and without NSSpeechRecognitionUsageDescription in Info.plist) trips
     // macOS TCC. Denied → chunks transcribe to "" and the note is transcript-empty.
     _ = await AppleSpeechASR.requestAuthorization()
-    // Pick the summary backend. Default `.cloud` keeps today's NIM behavior; `.local`
+    // Pick the summary backend for the native pipeline. The shipped default path is
     // runs fully on-device (Gemma via LiteRT-LM) with no network; `.none` skips the
     // summary. A backend that can't run (no key, or the Gemma model not yet installed)
     // throws inside the pipeline and degrades to a transcript-only note.
@@ -222,7 +222,7 @@ final class RecordingController: ObservableObject {
     case .localGemma:
       llm = GemmaProvider(modelURL: Paths.gemmaModelURL())
     case .cloud:
-      llm = Paths.nvidiaKey().map { NIMProvider(apiKey: $0) }
+      llm = Paths.llmAPIKey().map { OpenAICompatProvider(apiKey: $0) }
     }
     let pipeline = MeetingPipeline(asr: AppleSpeechASR(), llm: llm, refine: .local)
     do {

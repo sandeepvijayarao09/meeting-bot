@@ -2,11 +2,11 @@ import Foundation
 
 /// Which backend produces the summary (and the cloud-tier refinement polish).
 ///
-/// Mirrors the `MBOT_LLM` setting. `.cloud` is today's default (NVIDIA NIM); the
-/// roadmap target is fully-local `.localGemma` (on-device, no network) once the
-/// LiteRT-LM engine is wired and verified on a real device — at which point the
-/// cloud backend can be removed. `.none` keeps a deterministic, model-free,
-/// network-free product (transcript + local cleanup, no AI summary).
+/// Mirrors the `MBOT_LLM` setting for the *native* pipeline. The shipped app runs
+/// the Python sidecar instead, which already does on-device Gemma 4 through MLX;
+/// this enum only governs the native path. `.localGemma` here still awaits a
+/// LiteRT-LM engine. `.none` keeps a deterministic, model-free, network-free
+/// product (transcript + local cleanup, no AI summary).
 public enum LLMBackend: String, Sendable {
   case none
   case cloud

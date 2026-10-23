@@ -45,7 +45,7 @@ class TestFinalizeSession:
     def test_with_key_summarizes(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from meetingbot import summarize
 
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(
             summarize, "summarize_meeting", lambda *a, **k: "## Summary\n- great meeting"
         )
@@ -60,7 +60,7 @@ class TestFinalizeSession:
     ) -> None:
         from meetingbot import summarize
 
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "summarize_meeting", lambda *a, **k: "## Summary\n- launch")
         monkeypatch.setattr(summarize, "generate_title", lambda *a, **k: "Q3 Launch Planning")
         session = fake_session(isolated, name="20260612-090000-untitled")
@@ -74,7 +74,7 @@ class TestFinalizeSession:
     def test_keeps_explicit_title(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from meetingbot import summarize
 
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "summarize_meeting", lambda *a, **k: "## Summary\n- x")
 
         def fail(*a: object, **k: object) -> str:
@@ -107,7 +107,7 @@ class TestRefineWiring:
     ) -> None:
         from meetingbot import summarize
 
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(recorder.refine, "refine_transcript", lambda *a, **k: "REFINED BODY")
         seen: dict[str, str] = {}
 
@@ -127,7 +127,7 @@ class TestRefineWiring:
         # the model invent a summary from nothing).
         from meetingbot import summarize
 
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(recorder.refine, "refine_transcript", lambda *a, **k: "   ")
         seen: dict[str, str] = {}
 
@@ -158,7 +158,7 @@ class TestRefineWiring:
         # only to produce the note/summary content (never for the emptiness check).
         from meetingbot import summarize
 
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "summarize_meeting", lambda *a, **k: "## Summary\n- ok")
         calls: list[object] = []
 
