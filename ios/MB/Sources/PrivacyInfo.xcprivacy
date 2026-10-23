@@ -23,7 +23,7 @@
             </array>
         </dict>
         <dict>
-            <!-- @AppStorage (UserDefaults) stores the optional NIM API key, app-only. -->
+            <!-- @AppStorage (UserDefaults) stores the optional LLM API key, app-only. -->
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
             <key>NSPrivacyAccessedAPITypeReasons</key>

@@ -42,8 +42,8 @@ and creating the notary profile are the first two steps of
 
 ## Bring-your-own-key (all AI features)
 
-Summaries use **your** NVIDIA NIM key (free at https://build.nvidia.com). No key is bundled.
-- **CLI / backend:** `mbot set-key` (or set `NVIDIA_API_KEY` in `~/.config/meetingbot/.env`).
+Summaries run **on device** via Gemma 4 (MLX). No key is bundled and none is needed.
+- **CLI / backend:** `mbot download-model --llm` fetches the model; `mbot set-key` is only for the optional cloud backend.
 - **macOS app:** Settings → "API key".  **iOS app:** Settings → API key (stored in Keychain).
 - **Chrome extension:** keyless — summarization runs through the paired macOS app's key.
 
@@ -81,7 +81,7 @@ Builds for device-arch Release + unit tests pass (`make ios-test`).
    archive builds; `xcodegen generate`.
 2. Create the App Store Connect record (bundle id above); set the privacy-policy URL.
 3. **App Privacy form:** the app itself collects nothing; when the user sets a key, the
-   *transcript text* is sent to NVIDIA (a user-configured service, not retained by us). The
+   *transcript text* is sent to the endpoint they configured (not retained by us). The
    defensible declaration is **User Content → not linked, not used for tracking**, with an
    in-app disclosure (already shown at the key field). Do **not** advertise "100% private"
    without the transcript-to-cloud caveat.

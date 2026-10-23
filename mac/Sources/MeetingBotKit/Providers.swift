@@ -14,7 +14,7 @@ public protocol ASRProvider: Sendable {
   func transcribe(_ wav: URL) async throws -> String
 }
 
-/// A chat-completion backend (on-device Gemma, or the NVIDIA NIM cloud fallback).
+/// A chat-completion backend (on-device Gemma, or an OpenAI-compatible cloud one).
 public protocol LLMProvider: Sendable {
   func complete(system: String, user: String, maxTokens: Int) async throws -> String
 }
@@ -29,17 +29,17 @@ public enum LLMError: Error, Equatable {
   case modelUnavailable
 }
 
-/// NVIDIA NIM (OpenAI-compatible) chat completions over URLSession — the Swift
+/// OpenAI-compatible chat completions over URLSession — the Swift
 /// port of `meetingbot/summarize.complete`. Used as the cloud fallback on iOS when
 /// the device can't run on-device Gemma (or before the model is downloaded).
-public struct NIMProvider: LLMProvider {
+public struct OpenAICompatProvider: LLMProvider {
   public let apiKey: String
   public let baseURL: String
   public let model: String
 
   public init(
     apiKey: String,
-    baseURL: String = "https://integrate.api.nvidia.com/v1",
+    baseURL: String = "https://generativelanguage.googleapis.com/v1beta/openai",
     model: String = "openai/gpt-oss-120b"
   ) {
     self.apiKey = apiKey

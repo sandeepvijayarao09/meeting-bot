@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from meetingbot import config, models, notes
+from meetingbot import config, llm, models, notes
 from meetingbot.cli import app
 from tests.test_recorder import fake_session
 
@@ -33,22 +33,22 @@ class TestSetKey:
         monkeypatch.setattr(config, "CONFIG_DIR", cfg)  # never touch the real ~/.config key
         env_file = cfg / ".env"
 
-        result = runner.invoke(app, ["set-key", "nvapi-abcdef123456"])
+        result = runner.invoke(app, ["set-key", "sk-test-abcdef123456"])
         assert result.exit_code == 0
-        assert "NVIDIA_API_KEY=nvapi-abcdef123456" in env_file.read_text()
-        assert "nvapi-abcdef123456" not in result.output  # masked, never echoed in full
+        assert "MBOT_LLM_API_KEY=sk-test-abcdef123456" in env_file.read_text()
+        assert "sk-test-abcdef123456" not in result.output  # masked, never echoed in full
 
         # Upsert: replace the key without duplicating, preserving unrelated lines.
-        env_file.write_text("OTHER=1\nNVIDIA_API_KEY=old\n")
+        env_file.write_text("OTHER=1\nMBOT_LLM_API_KEY=old\n")
         runner.invoke(app, ["set-key", "nvapi-newkey987654"])
         text = env_file.read_text()
-        assert "OTHER=1" in text and text.count("NVIDIA_API_KEY=") == 1
+        assert "OTHER=1" in text and text.count("MBOT_LLM_API_KEY=") == 1
         assert "nvapi-newkey987654" in text
 
         # Clear with an empty value; other lines survive.
         result = runner.invoke(app, ["set-key", ""])
         assert result.exit_code == 0
-        assert "NVIDIA_API_KEY=" not in env_file.read_text()
+        assert "MBOT_LLM_API_KEY=" not in env_file.read_text()
         assert "OTHER=1" in env_file.read_text()
 
 
@@ -94,7 +94,7 @@ class TestSummarize:
         fake_session(isolated)
         result = runner.invoke(app, ["summarize"])
         assert result.exit_code == 1
-        assert "NVIDIA_API_KEY" in result.output
+        assert "backend" in result.output
 
     def test_no_sessions(self, isolated: Path) -> None:
         result = runner.invoke(app, ["summarize"])
@@ -142,10 +142,10 @@ class TestTransformCmd:
         fake_session(isolated)
         result = runner.invoke(app, ["transform", "key_points"])
         assert result.exit_code == 1
-        assert "NVIDIA_API_KEY" in result.output
+        assert "backend" in result.output
 
     def test_unknown_kind_fails(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         fake_session(isolated)
         result = runner.invoke(app, ["transform", "bogus"])
         assert result.exit_code == 1
@@ -154,7 +154,7 @@ class TestTransformCmd:
     def test_runs_with_mocked_nim(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from meetingbot import summarize
 
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "complete", lambda *a, **k: "- point one")
         fake_session(isolated)
         result = runner.invoke(app, ["transform", "key_points"])
@@ -176,9 +176,9 @@ class TestDoctor:
     def test_reports_missing_key(self, isolated: Path) -> None:
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 1
-        assert "NVIDIA_API_KEY not set" in result.output
+        assert "MBOT_LLM_API_KEY is not set" in result.output
 
-    def test_all_green_with_key_and_nim(
+    def test_all_green_with_model_and_backend(
         self, isolated: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from meetingbot import summarize
@@ -187,14 +187,16 @@ class TestDoctor:
         audiocap = isolated / "audiocap"
         audiocap.write_text("")
         monkeypatch.setattr(config, "AUDIOCAP_BIN", audiocap)
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "ping", lambda: "ok")
+        monkeypatch.setattr(llm, "ping", lambda: "ok")
+        monkeypatch.setattr(llm, "is_available", lambda: True)
         # The model is a separate download, so "set up" now includes having it.
         monkeypatch.setattr(models, "is_downloaded", lambda *a: True)
         monkeypatch.setattr(models, "disk_usage", lambda *a: 1_500_000_000)
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
-        assert "NIM reachable" in result.output
+        assert "LLM backend" in result.output
 
     def test_flags_missing_model(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """An uncached model means the first recording stalls on a 1.5 GB fetch."""
@@ -203,7 +205,7 @@ class TestDoctor:
         audiocap = isolated / "audiocap"
         audiocap.write_text("")
         monkeypatch.setattr(config, "AUDIOCAP_BIN", audiocap)
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "ping", lambda: "ok")
         monkeypatch.setattr(models, "is_downloaded", lambda *a: False)
         result = runner.invoke(app, ["doctor"])
@@ -216,7 +218,7 @@ class TestDoctor:
 
         monkeypatch.setattr(config, "AUDIOCAP_BIN", isolated / "no-such-audiocap")
         monkeypatch.setattr(config, "FROZEN", False)
-        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(config, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(summarize, "ping", lambda: "ok")
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 1

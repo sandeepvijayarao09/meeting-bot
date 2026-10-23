@@ -60,7 +60,8 @@ public struct MeetingPipeline {
 
   /// - Parameters:
   ///   - asr: on-device transcription.
-  ///   - llm: summary/refine backend (on-device Gemma or NIM); `nil` → transcript-only note.
+  ///   - llm: summary/refine backend (on-device Gemma, or an OpenAI-compatible
+  ///     endpoint); `nil` → transcript-only note.
   ///   - refine: cleanup tier; "cloud" polishes via `llm` when available, else local.
   public init(asr: ASRProvider, llm: LLMProvider? = nil, refine: RefineTier = .local) {
     self.asr = asr

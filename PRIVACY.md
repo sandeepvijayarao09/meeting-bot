@@ -23,10 +23,12 @@ happens to your data.
 
 These are **off by default** and only operate when you explicitly enable them:
 
-- **Cloud summary (NVIDIA NIM).** If you add your own API key, MB sends the meeting's
-  **transcript text** (never audio) to NVIDIA's NIM service to generate the summary.
-  That request is governed by NVIDIA's privacy policy. On-device summarization (Gemma)
-  keeps even this step local.
+- **Cloud summary (off by default).** Summaries are generated **on your Mac** by
+  Gemma 4, so by default no part of a meeting — audio or text — leaves the device.
+  If you deliberately switch to the cloud backend (`MBOT_LLM_BACKEND=cloud`) and
+  supply your own API key, MB sends the meeting's **transcript text** (never audio)
+  to whichever OpenAI-compatible endpoint you configure, governed by that provider's
+  privacy policy. No provider is preconfigured with a key and none is bundled.
 - **Exports (macOS).** If you enable Apple Notes or Google Docs export, the finished
   note is sent to that destination. Apple Notes may sync via your iCloud account;
   Google Docs uploads to your Google Drive under your own Google account.

@@ -149,8 +149,8 @@ final class PipelineTests: XCTestCase {
     XCTAssertTrue(note.transcriptMarkdown.contains("Second chunk survived"))
   }
 
-  func testNIMProviderRequiresKey() async {
-    let provider = NIMProvider(apiKey: "")
+  func testOpenAICompatProviderRequiresKey() async {
+    let provider = OpenAICompatProvider(apiKey: "")
     do {
       _ = try await provider.complete(system: "s", user: "u")
       XCTFail("expected missingKey")

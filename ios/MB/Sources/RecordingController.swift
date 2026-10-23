@@ -54,7 +54,7 @@ final class RecordingController: ObservableObject {
     await recorder.stop()
     self.recorder = nil
 
-    let llm: LLMProvider? = apiKey.isEmpty ? nil : NIMProvider(apiKey: apiKey)
+    let llm: LLMProvider? = apiKey.isEmpty ? nil : OpenAICompatProvider(apiKey: apiKey)
     let pipeline = MeetingPipeline(asr: AppleSpeechASR(), llm: llm, refine: .local)
     do {
       let note = try await pipeline.process(sessionDir: sessionDir, title: nil)

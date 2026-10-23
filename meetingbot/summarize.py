@@ -1,20 +1,18 @@
-"""Meeting summarization via NVIDIA NIM (OpenAI-compatible API).
+"""Meeting summarization.
 
-The only network/AI-credit-consuming module. Everything else runs locally.
-Long transcripts are map-reduced; normal meetings cost a single request.
+Generation itself lives in :mod:`meetingbot.llm` (on-device Gemma 4 by default);
+this module owns the prompting, the map-reduce for long transcripts, and title
+generation. Normal meetings take a single completion.
 """
 
 import datetime as dt
 import json
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from . import config
+from . import config, llm
 
-if TYPE_CHECKING:
-    from openai import OpenAI
-
-# gpt-oss-120b (and most NIM chat models) take 128k tokens; stay far below to
-# leave room for the model's output (and any reasoning tokens).
+# Gemma 4 E4B carries a 128k context; stay far below it so the transcript, the
+# prompt and the model's own output all fit comfortably.
 MAX_DIRECT_CHARS = 240_000
 PIECE_CHARS = 80_000
 
@@ -30,30 +28,14 @@ CONDENSE_PROMPT = (
 )
 
 
-class MissingAPIKeyError(RuntimeError):
-    pass
+# Kept as an alias so callers that still catch this keep working; the backend may
+# now be unavailable for reasons other than a missing key (no local model).
+MissingAPIKeyError = llm.LLMUnavailableError
 
 
 def have_key() -> bool:
-    return bool(config.NVIDIA_API_KEY)
-
-
-def _client() -> "OpenAI":
-    if not have_key():
-        raise MissingAPIKeyError(
-            "NVIDIA_API_KEY is not set. Get a free key at https://build.nvidia.com "
-            "and put it in ~/.config/meetingbot/.env"
-        )
-    from openai import OpenAI
-
-    # Bound the request time: the SDK default (600s) can hang Stop→"Processing…" for
-    # 10 minutes if NIM is slow. One retry keeps the worst case ~2x NIM_TIMEOUT.
-    return OpenAI(
-        base_url=config.NIM_BASE_URL,
-        api_key=config.NVIDIA_API_KEY,
-        timeout=config.NIM_TIMEOUT,
-        max_retries=1,
-    )
+    """Whether a summary can be produced. Named for history; asks the backend."""
+    return llm.is_available()
 
 
 def _log_usage(model: str, usage: Any) -> None:
@@ -75,35 +57,13 @@ def _log_usage(model: str, usage: Any) -> None:
         pass
 
 
-def _reasoning_kwargs() -> dict[str, Any]:
-    """Pass `reasoning_effort` only to gpt-oss (a reasoning model). Non-reasoning
-    models (e.g. llama-3.3-70b) reject the param, so we omit it for them. "low"
-    effort keeps note quality while cutting latency/tokens ~40%; "none" disables.
-    """
-    level = config.NIM_REASONING
-    if level and level != "none" and "gpt-oss" in config.NIM_MODEL.lower():
-        return {"reasoning_effort": level}
-    return {}
-
-
 def complete(
     system_prompt: str, user_prompt: str, max_tokens: int = 4096, temperature: float = 0.2
 ) -> str:
-    """One chat completion against NIM. Shared by summary + ask-my-meetings."""
-    client = _client()
-    resp = client.chat.completions.create(
-        model=config.NIM_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=temperature,
-        max_tokens=max_tokens,
-        **_reasoning_kwargs(),
-    )
-    if resp.usage:
-        _log_usage(config.NIM_MODEL, resp.usage)
-    return (resp.choices[0].message.content or "").strip()
+    """One completion. Shared by summary, Ask, refine and transform."""
+    text = llm.complete(system_prompt, user_prompt, max_tokens=max_tokens, temperature=temperature)
+    _log_usage(llm.describe(), None)
+    return text
 
 
 def _chat(user_content: str, max_tokens: int = 4096) -> str:
@@ -205,16 +165,5 @@ def summarize_meeting(
 
 
 def ping() -> str:
-    """Cheap connectivity check used by `mbot doctor`. Uses a short timeout and no
-    retries so a slow/unreachable NIM makes the diagnostic fail fast (~10s) instead of
-    stalling for minutes on the normal request timeout."""
-    client = _client().with_options(timeout=10.0, max_retries=0)
-    resp = client.chat.completions.create(
-        model=config.NIM_MODEL,
-        messages=[{"role": "user", "content": "Reply with the single word: ok"}],
-        # Reasoning models (e.g. gpt-oss) spend tokens thinking before answering,
-        # so give the probe enough headroom to actually emit the final word.
-        max_tokens=64,
-        **_reasoning_kwargs(),
-    )
-    return (resp.choices[0].message.content or "").strip()
+    """Cheap check used by `mbot doctor` that the backend actually answers."""
+    return llm.ping()

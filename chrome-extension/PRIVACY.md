@@ -24,10 +24,11 @@ server by the extension.
   you control.
 - The extension itself performs **no** remote network requests, hosts **no** analytics,
   and stores **no** data beyond the in-memory state of an active recording.
-- If you configure an NVIDIA API key in the companion Mac app, the finished transcript
-  **text** (never audio) is sent to NVIDIA's API to generate a summary. This happens in
-  the Mac app, is entirely optional, and is under your control. See NVIDIA's privacy
-  policy for how they handle API requests.
+- Summaries are generated on your Mac by default, so nothing is uploaded. If you
+  switch the companion Mac app to its optional cloud backend, the finished transcript
+  **text** (never audio) is sent to the endpoint you configured. This happens in
+  the Mac app, is entirely optional, and is under your control. Consult that
+  provider's privacy policy for how they handle API requests.
 
 ## Data retention and deletion
 

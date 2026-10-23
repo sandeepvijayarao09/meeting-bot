@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 /// A tiny Keychain wrapper for a single generic-password secret. Used instead of
-/// UserDefaults so the user's NIM API key is stored encrypted rather than as
+/// UserDefaults so the user's API key is stored encrypted rather than as
 /// plaintext in the app's plist (which lands in unencrypted device backups).
 enum Keychain {
   static func read(_ account: String) -> String? {
@@ -43,7 +43,7 @@ enum Keychain {
   }
 }
 
-/// Shared, observable store for the user's secrets. Backs the NIM API key with the
+/// Shared, observable store for the user's secrets. Backs the API key with the
 /// Keychain and migrates any key previously saved via @AppStorage (UserDefaults).
 @MainActor
 final class Secrets: ObservableObject {

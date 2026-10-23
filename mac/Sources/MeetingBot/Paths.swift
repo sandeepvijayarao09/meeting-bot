@@ -67,7 +67,7 @@ enum Paths {
   }
 
   /// Which LLM backend the native pipeline uses for the summary. `MBOT_LLM` env, else
-  /// the `llmBackend` default, else `.cloud` (today's NIM behavior — unchanged). Set
+  /// the `llmBackend` default, else `.cloud` (the native pipeline's behavior). Set
   /// `local` for fully-local, on-device Gemma (no network); `none` for no summary.
   static var llmBackend: LLMBackend {
     let raw =
@@ -89,17 +89,18 @@ enum Paths {
       .map { GemmaModel.url(appSupport: $0) }
   }
 
-  /// The user's NVIDIA NIM key from ~/.config/meetingbot/.env (written by Settings),
-  /// for the native pipeline's cloud summary. Phase C moves this into the container.
-  static func nvidiaKey() -> String? {
+  /// The optional cloud-backend API key from ~/.config/meetingbot/.env (written by
+  /// Settings). Only used when the cloud backend is selected; the default summarizer
+  /// is on-device Gemma and needs no key.
+  static func llmAPIKey() -> String? {
     let envFile = FileManager.default.homeDirectoryForCurrentUser
       .appendingPathComponent(".config/meetingbot/.env")
     guard let text = try? String(contentsOf: envFile, encoding: .utf8) else { return nil }
-    let prefix = "NVIDIA_API_KEY="
+    let prefix = "MBOT_LLM_API_KEY="
     for line in text.components(separatedBy: "\n") where line.hasPrefix(prefix) {
       var value = String(line.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
       // Strip surrounding quotes, matching how python-dotenv reads the same file, so a
-      // hand-edited `NVIDIA_API_KEY="nvapi-…"` doesn't send quotes to NIM (401).
+      // hand-edited `MBOT_LLM_API_KEY="…"` doesn't send quotes upstream (401).
       if value.count >= 2, let first = value.first, first == value.last,
         first == "\"" || first == "'"
       {

@@ -25,7 +25,7 @@ needs no meeting-platform integration.
 - 📤 **Exports** — Markdown, Apple Notes (iCloud or on-device), Google Docs.
 - 🔎 **Search & Ask** — full-text across every meeting, plus AI Q&A over your meetings.
 - 💻 **Three front-ends** — a native macOS SwiftUI app, a Chrome extension, and an iOS app (mic-based, on-device; see [ios/README.md](ios/README.md)).
-- 💸 **$0** — local Whisper + NVIDIA NIM's free tier (~500 meetings on signup credits).
+- 💸 **$0 and no account** — local Whisper for speech, local Gemma 4 for summaries. No API key, no signup, no per-meeting cost.
 
 > **Why local-first?** Cloud notetakers upload your meeting audio to their servers.
 > Meeting Bot keeps the recording and transcript on your machine; the only optional
@@ -48,16 +48,16 @@ app yourself).
 
 ## Setup from source (once)
 
-1. **NVIDIA NIM key (free):** sign up at <https://build.nvidia.com> (email only), create
-   an API key, then:
+1. **Fetch the models (once):** speech and summaries both run on your Mac, so the
+   two models download once and nothing needs a key:
 
    ```bash
-   mkdir -p ~/.config/meetingbot
-   echo 'NVIDIA_API_KEY=nvapi-...' > ~/.config/meetingbot/.env
+   uv run mbot download-model         # speech (~1.5 GB)
+   uv run mbot download-model --llm   # summaries (~5 GB)
    ```
 
-   No key yet? Everything still works — transcripts are saved and you run
-   `mbot summarize` once the key exists.
+   Haven't fetched the summary model yet? Everything still works — transcripts are
+   saved, and `mbot summarize` fills in the notes once it is there.
 
 2. **Build & install** (audiocap is already built if `.build/release/audiocap` exists):
 
@@ -181,12 +181,12 @@ Environment variables (in `~/.config/meetingbot/.env` or a repo-local `.env`):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `NVIDIA_API_KEY` | — | free key from build.nvidia.com |
-| `MBOT_NIM_MODEL` | `openai/gpt-oss-120b` | summary model (any NIM chat model, e.g. `meta/llama-3.3-70b-instruct`) |
-| `MBOT_NIM_REASONING` | `low` | gpt-oss reasoning effort: `low`/`medium`/`high`/`none` (low ≈ 40% faster, equal quality for notes) |
+| `MBOT_LLM_BACKEND` | `local` | `local` (on-device Gemma 4) / `cloud` (any OpenAI-compatible endpoint) / `none` (transcript-only) |
+| `MBOT_GEMMA_MODEL` | `mlx-community/gemma-4-e4b-it-4bit` | the on-device summary model; `gemma-4-e2b-it-4bit` is smaller and faster |
+| `MBOT_LLM_API_KEY` | — | only for `MBOT_LLM_BACKEND=cloud` |
 | `MBOT_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | local ASR model (≈1.6 GB, downloads on first use; use `mlx-community/whisper-small` on low disk/RAM) |
 | `MBOT_VOCAB` | — | domain words to spell right (product names, jargon, people), e.g. `Postgres, Kubernetes, OAuth` |
-| `MBOT_REFINE` | `local` | transcript cleanup tier: `off` (raw) / `local` (on-device, $0) / `cloud` (local + NIM polish, opt-in) |
+| `MBOT_REFINE` | `local` | transcript cleanup tier: `off` (raw) / `local` (on-device, $0) / `cloud` (local + an LLM polish pass, opt-in) |
 | `MBOT_NOTES_DIR` | `./notes` | where Markdown notes go |
 | `MBOT_DATA_DIR` | `~/.local/share/meetingbot` | sessions, search index, usage log |
 | `MBOT_CHUNK_SECONDS` | `30` | audio chunk size for live transcription |
@@ -204,12 +204,12 @@ The summary prompt is `prompts/meeting_summary.md` — edit it to taste.
    in the meeting*, merging both streams by timestamp into Me/Them turns.
 3. When you stop, the transcript is **refined** (Eloquent-style): an on-device pass
    strips fillers, stutters, and false starts and fixes punctuation — all locally and
-   for free. The raw transcript is kept; with `MBOT_REFINE=cloud` a NIM pass polishes
+   for free. The raw transcript is kept; with `MBOT_REFINE=cloud` an LLM pass polishes
    it further.
-4. One request to NVIDIA NIM turns the cleaned transcript (plus your rough notes) into
-   polished meeting notes. At 1–2 requests per meeting, the 1,000 free credits cover
-   ~500+ meetings; NIM usage is logged to `~/.local/share/meetingbot/usage.log`. You
-   can also reshape any meeting on demand with `mbot transform key_points|formal|short|long`.
+4. Gemma 4, running on your Mac through MLX, turns the cleaned transcript (plus your
+   rough notes) into polished meeting notes — no key, no network, no per-meeting cost.
+   Generation is logged to `~/.local/share/meetingbot/usage.log`. You can also reshape
+   any meeting on demand with `mbot transform key_points|formal|short|long`.
 
 See [ROADMAP.md](ROADMAP.md) for what's next. The original build log lives in
 [docs/history/PLAN.md](docs/history/PLAN.md).

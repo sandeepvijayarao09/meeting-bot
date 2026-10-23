@@ -83,7 +83,7 @@ single-binary app, the path is to replace the Python transcription with
 [whisper.cpp](https://github.com/ggerganov/whisper.cpp) called directly from Swift —
 then `CaptureKit` + a Whisper Swift wrapper make the whole product native, and the
 Python pipeline becomes optional (CLI/extension only). The summary step can call
-NVIDIA NIM directly over HTTPS from Swift. The current build keeps the Python pipeline,
+a cloud endpoint directly over HTTPS from Swift. The current build keeps the Python pipeline,
 but the architecture (app → `mbot process`) is deliberately swappable: replace that one
 call site and the rest is unaffected.
 

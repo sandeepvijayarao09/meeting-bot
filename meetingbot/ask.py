@@ -49,8 +49,8 @@ def ask(question: str, limit: int = 5) -> AskResult:
     """Answer a question over the meeting corpus. Requires the NIM API key."""
     if not summarize.have_key():
         raise summarize.MissingAPIKeyError(
-            "Answering questions needs the NVIDIA API key. Get a free one at "
-            "https://build.nvidia.com and put it in ~/.config/meetingbot/.env"
+            "Answering questions needs an LLM backend. Fetch the on-device model "
+            "once with: mbot download-model --llm"
         )
     hits = notes.search(question, limit=limit)
     if not hits:

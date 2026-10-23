@@ -8,7 +8,7 @@ Fireflies, tl;dv) and what's next. Everything stays local-first.
 - ✅ Any-app capture (mic + system audio), no bot joins the call
 - ✅ Local Whisper transcription with Me/Them attribution
 - ✅ Speaker diarization (Speaker A/B/C among "Them"), opt-in `MBOT_DIARIZE`
-- ✅ AI summaries (decisions, action items) via free NVIDIA NIM
+- ✅ AI summaries (decisions, action items) via on-device Gemma 4
 - ✅ **Meeting templates / "Recipes"** — general, standup, 1:1, interview, sales call
 - ✅ **Talk-time analytics** — Me/Them ratio, words, turns, longest monologue
 - ✅ Ask-my-meetings (retrieval + AI answer with sources)
