@@ -18,33 +18,18 @@ transcript *text* when you opt into cloud summaries with your own key.
 1. Download **`MB-1.0.1-<build>.dmg`** from the
    [latest release](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest).
 2. Open the DMG and **drag `MB.app` into Applications**.
-3. **First launch (important).** Releases up to and including **1.0.1** are ad-hoc signed
-   — not yet notarized by Apple — so macOS blocks the first launch with *"MB" Not Opened
-   — Apple could not verify "MB" is free of malware*. **Click `Done`, not `Move to
-   Trash`** (Trash is the highlighted button). Then, on **macOS 15 Sequoia or later**:
-
-   1. **Apple menu** ▸ **System Settings** ▸ **Privacy & Security**.
-   2. Scroll to **Security**. You'll see *"MB" was blocked to protect your Mac*.
-   3. Click **Open Anyway**, authenticate, and confirm **Open Anyway** once more.
-
-   That button only appears for about an hour after a blocked launch, so if it's gone,
-   double-click the app again first. On **macOS 14 Sonoma** you can instead right-click
-   `MB.app` → **Open** → **Open** — Apple removed that shortcut in macOS 15.
-
-   Either way it's once per install. A 🎤 icon appears in the menu bar and the
+3. **Open it.** Double-click `MB.app`. A 🎤 icon appears in the menu bar and the
    **Meetings** window opens.
 
-   <details><summary>Terminal alternative (any version)</summary>
-
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/MB.app
-   ```
-   This strips the download-quarantine flag, so Gatekeeper stops gating the app.
-   </details>
-
-> Why any of this: Gatekeeper only lets unsigned apps through by explicit user consent.
-> A **notarized** build opens with no warning at all — that needs an Apple Developer ID
-> ($99/yr). See [RELEASE.md](RELEASE.md#ship-a-notarized-download) to produce one.
+> Builds from **1.0.1 (build 39)** onward are signed with an Apple Developer ID and
+> **notarized by Apple**, so they open with no security warning — including on a Mac
+> that has never run MB, and with no network connection. The notarization ticket is
+> stapled to both the disk image and the app itself, so nothing is checked online at
+> launch.
+>
+> Earlier downloads were ad-hoc signed and needed a manual Gatekeeper bypass. If you
+> have one of those, replace it with the current DMG instead of working around the
+> block.
 
 ## 2. Grant permissions (first recording)
 
@@ -144,7 +129,7 @@ see [docs/on-device-llm.md](docs/on-device-llm.md).
 
 | Symptom | Fix |
 |---|---|
-| "MB Not Opened" / "Apple could not verify MB" | Click **Done**, then System Settings ▸ Privacy & Security ▸ **Open Anyway** (macOS 15+). Full steps in [step 1](#1-install-the-macos-app). |
+| "MB Not Opened" / "Apple could not verify MB" | You're running a download from before notarization. Delete it and get the current DMG from the [latest release](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest) — it opens with no warning. |
 | First recording captures no "Them" audio | Enable **Screen & System Audio Recording** in System Settings → Privacy & Security, then **quit and reopen** MB.app. |
 | Notes save but there's no summary | You haven't set an API key (step 3), or the request failed — the transcript-only note is expected. |
 | Extension won't connect | Make sure `mbot serve` is running (`ws://127.0.0.1:8765`) on the same Mac. |
