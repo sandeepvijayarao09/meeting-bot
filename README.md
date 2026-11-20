@@ -46,10 +46,9 @@ live transcript view, on-device summaries) and [CONTRIBUTING.md](CONTRIBUTING.md
 ## Download
 
 **[Download MB.dmg (v1.0.1, Apple Silicon, macOS 14+)](https://github.com/sandeepvijayarao09/meeting-bot/releases/latest)**,
-then follow [INSTALL.md](INSTALL.md). The 1.0.x builds are ad-hoc signed, not notarized,
-so the first launch needs one trip to System Settings → Privacy & Security → **Open
-Anyway**; INSTALL.md walks through it. The Chrome extension zip is on the same release
-page.
+then follow [INSTALL.md](INSTALL.md). The build is signed with an Apple Developer ID
+and notarized by Apple, so it opens with no security warning and no trip to System
+Settings. The Chrome extension zip is on the same release page.
 
 The rest of this README is for running from source (CLI, development, or building the
 app yourself).
