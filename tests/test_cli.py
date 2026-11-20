@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from meetingbot import config, notes
+from meetingbot import config, models, notes
 from meetingbot.cli import app
 from tests.test_recorder import fake_session
 
@@ -189,9 +189,27 @@ class TestDoctor:
         monkeypatch.setattr(config, "AUDIOCAP_BIN", audiocap)
         monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
         monkeypatch.setattr(summarize, "ping", lambda: "ok")
+        # The model is a separate download, so "set up" now includes having it.
+        monkeypatch.setattr(models, "is_downloaded", lambda *a: True)
+        monkeypatch.setattr(models, "disk_usage", lambda *a: 1_500_000_000)
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
         assert "NIM reachable" in result.output
+
+    def test_flags_missing_model(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An uncached model means the first recording stalls on a 1.5 GB fetch."""
+        from meetingbot import summarize
+
+        audiocap = isolated / "audiocap"
+        audiocap.write_text("")
+        monkeypatch.setattr(config, "AUDIOCAP_BIN", audiocap)
+        monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-test")
+        monkeypatch.setattr(summarize, "ping", lambda: "ok")
+        monkeypatch.setattr(models, "is_downloaded", lambda *a: False)
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 1
+        assert "model not downloaded" in result.output
+        assert "mbot download-model" in result.output
 
     def test_flags_missing_audiocap(self, isolated: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from meetingbot import summarize

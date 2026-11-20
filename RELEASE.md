@@ -176,8 +176,13 @@ Then update [INSTALL.md](INSTALL.md) §1 and the release notes — the right-cli
 workaround no longer applies, and telling users to bypass Gatekeeper when they no longer
 need to is worse than useless.
 
-**Size:** ~860 MB installed (bundled Python + MLX-Whisper sidecar), compressing to ~312 MB
-for download. The native migration (below) removes the sidecar and shrinks this dramatically.
+**Size:** ~406 MB installed (bundled Python + MLX-Whisper sidecar), compressing to ~164 MB
+for download — down from 861 MB / 312 MB, by excluding code no execution path reaches
+(see the exclusion block in [build-sidecar.sh](scripts/build-sidecar.sh)). What remains is
+mlx (178 MB) plus the numba/llvmlite/scipy that `mlx_whisper.transcribe` imports at module
+scope (147 MB); those cannot be dropped without breaking transcription. The speech model is
+not in the bundle at all — it is a separate one-time fetch (`mbot download-model`, offered
+as a button in Settings). The native migration (below) removes the sidecar entirely.
 
 **Mac App Store (native migration):** the app store
 requires the App Sandbox, which forbids the Python subprocess. The migration path: the
@@ -186,7 +191,7 @@ behind `MBOT_NATIVE_PIPELINE=1` (Phase A done — flag-gated, builds/tests green
 before MAS submission: validate the native path on a real Mac, make it the default, remove
 the `Process`/sidecar paths, add `com.apple.security.app-sandbox` + `network.client`
 entitlements (drop `allow-jit`/`disable-library-validation`), and switch to an Apple
-Distribution cert. This also **eliminates the ~860 MB sidecar**, shrinking the app dramatically.
+Distribution cert. This also **eliminates the remaining ~400 MB sidecar**, shrinking the app further.
 
 ---
 

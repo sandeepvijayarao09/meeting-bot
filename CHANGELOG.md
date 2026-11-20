@@ -4,6 +4,44 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **The macOS download is 47% smaller: 312 MB → 164 MB (861 MB → 406 MB installed.)**
+  PyInstaller resolves imports statically, so it was bundling everything *reachable*
+  rather than everything *reached*. Removed, after verifying each is unreachable:
+  - **PyTorch (319 MB)** — `mlx-whisper` declares it, but only its `torch_whisper.py`
+    imports it, and nothing imports that module; it converts PyTorch checkpoints to
+    MLX, which is irrelevant when loading an already-converted `mlx-community` repo.
+  - **582 Google API discovery documents (96 MB)** — the Docs exporter builds its
+    services with `cache_discovery=False`, so not one was ever read. Only the two
+    APIs we actually build are kept.
+  - **Dev tooling (mypy, coverage)** that reached the bundle via the build venv.
+
+  `numba`, `llvmlite` and `scipy` (147 MB) are deliberately kept: `mlx_whisper`'s
+  `transcribe.py` imports `.timing` at module scope, so excluding them shrinks the
+  bundle and breaks transcription. Tests pin both halves of that decision.
+
+### Fixed
+- **The frozen sidecar printed two bogus usage errors and killed its semaphore
+  tracker on every transcription.** In a PyInstaller build `sys.executable` is the
+  `mbot` binary, so when multiprocessing started a child it re-ran `mbot` with
+  Python's own flags; Typer rejected them (`No such option: -B`), the child died,
+  and `resource_tracker` logged `process died unexpectedly, relaunching` while
+  leaking the semaphores it exists to clean up. The entry point now calls
+  `multiprocessing.freeze_support()` before anything touches argv. Present in
+  1.0.1; found by running a real transcription against the shipped bundle, which
+  no automated test does.
+
+### Added
+- **`mbot download-model`** and a **Download button in Settings ▸ Speech model** —
+  the ~1.5 GB speech model is not bundled, and previously it was fetched implicitly
+  the first time anything transcribed. That put a multi-minute download in the middle
+  of a user's first meeting with no progress indication and no way to distinguish it
+  from a hang. The fetch is now explicit, resumable, and offered up front.
+- **`mbot doctor` reports whether the model is actually cached**, with the one command
+  that fixes it, instead of the unfalsifiable "downloads on first use".
+
 ## [1.0.1] - 2026-08-29
 
 Security + correctness patch. Marketing version bumped for the Python/CLI and
