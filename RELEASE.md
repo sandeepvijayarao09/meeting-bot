@@ -163,6 +163,15 @@ the Gatekeeper verdict, the version stamp, and a sidecar smoke test. It must end
 `✓ fit for public distribution`. Both defects that shipped in the 1.0.0 DMG (missing prompt
 templates, a stale sidecar) were invisible to `make check` and are caught here.
 
+Auditing the app out of a *downloaded* DMG — the strongest version of this check — means
+clearing its quarantine first, or Gatekeeper blocks the nested sidecar on every exec:
+```bash
+xattr -dr com.apple.quarantine /Volumes/MB/MB.app
+```
+Every Gatekeeper call and sidecar invocation runs under a deadline (`GATEKEEPER_TIMEOUT`,
+`SIDECAR_TIMEOUT`, `CODESIGN_TIMEOUT`), so a quarantined bundle is now reported as a
+failure with that fix attached instead of hanging the gate with no output at all.
+
 **Step 5: publish it.** Notarizing from the `v1.0.1` tag reproduces the same build number,
 so the DMG keeps its exact filename and you can replace the asset in place rather than
 cutting a version whose only change is a better signature:
